@@ -320,12 +320,12 @@ export function motto(level, day, future) {
   }
   const counts = {};
   future.forEach(h => h.score.reasons.forEach(r => { if (r.level === 2) counts[r.key] = (counts[r.key] || 0) + 1; }));
-  const PRIO = ["dark", "closed", "foehn", "cape", "li", "rain", "gust", "windLaunch", "spread", "cloud", "windLand", "dir", "w850", "w700", "lee", "blh"];
+  const PRIO = ["closed", "foehn", "foehn2", "cape", "li", "wx", "rain", "gust", "windLaunch", "spread", "cloud", "windLand", "dir", "w850", "w700", "lee", "front", "vis", "blh", "dark"];   // Dunkelheit betrifft nur Randstunden: zuletzt
   const top = Object.entries(counts).sort((a, b) => (PRIO.indexOf(a[0]) + 99) % 99 - (PRIO.indexOf(b[0]) + 99) % 99 || b[1] - a[1])[0];
   return ({ foehn: "Föhn! Heute am Boden bleiben.", rain: "Regen. Der Schirm bleibt trocken.", cloud: "Start steckt in den Wolken.",
     gust: "Zu böig. Groundhandling statt Flug.", spread: "Zu böig. Groundhandling statt Flug.", windLaunch: "Zu viel Wind am Start.",
     dir: "Wind von der falschen Seite.", cape: "Gewittergefahr. Lieber am Boden.", li: "Gewittergefahr. Lieber am Boden.",
-    closed: "Bahn oder Startplatz zu.", dark: "Zu wenig Tageslicht.", w850: "Starker Wind in der Höhe.", w700: "Starker Höhenwind." })[top && top[0]] || "Bodentag. Zeit für Groundhandling.";
+    closed: "Bahn oder Startplatz zu.", dark: "Zu wenig Tageslicht.", foehn2: "Föhn! Heute am Boden bleiben.", front: "Front zieht durch.", vis: "Schlechte Sicht.", wx: "Gewittergefahr. Lieber am Boden.", w850: "Starker Wind in der Höhe.", w700: "Starker Höhenwind." })[top && top[0]] || "Bodentag. Zeit für Groundhandling.";
 }
 export function buildBriefing(s, ev, day) {
   const nowKey = isSim() ? "" : nowLocalKey();

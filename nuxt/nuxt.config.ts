@@ -32,7 +32,7 @@ export default defineNuxtConfig({
       wrangler: {
         name: "flugwetter",
         triggers: { crons: ["0 5 * * *"] },
-        kv_namespaces: [{ binding: "CACHE", id: "REPLACE_WITH_KV_ID" }],
+        kv_namespaces: [{ binding: "CACHE", id: "28990dcb7d7b48bb8af369e42dde7282" }],
       },
     },
   },
