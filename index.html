@@ -2,71 +2,14 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0d1318" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#edf1f3" media="(prefers-color-scheme: light)">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Flugwetter">
-<title>Flugwetter Walgau</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
-<link rel="stylesheet" href="app.css">
-
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flugwetter Walgau – umgezogen</title>
+<meta http-equiv="refresh" content="0; url=https://flugwetter.leander-digital.workers.dev/walgau">
+<link rel="canonical" href="https://flugwetter.leander-digital.workers.dev/walgau">
+<script>location.replace("https://flugwetter.leander-digital.workers.dev/walgau" + location.hash);</script>
+<style>body{font:16px/1.5 system-ui,sans-serif;background:#0d1318;color:#e5ecf1;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px}a{color:#ff7a3d}</style>
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <svg class="logo" viewBox="0 0 48 48" aria-hidden="true">
-      <circle cx="24" cy="24" r="23" style="fill:var(--surface);stroke:var(--line)"/>
-      <path d="M4 36 L15 22 L21 29 L29 17 L44 36 Z" style="fill:var(--muted);opacity:.55"/>
-      <path d="M11 15 Q24 4 37 15 Q24 10 11 15 Z" style="fill:var(--accent)"/>
-      <path d="M12 15 L24 27 M19 12.5 L24 27 M29 12.5 L24 27 M36 15 L24 27" style="stroke:var(--ink);stroke-width:.7;fill:none"/>
-      <circle cx="24" cy="28.5" r="2" style="fill:var(--ink)"/>
-    </svg>
-    <div>
-      <h1 id="brand">Flugwetter</h1>
-      <div class="sub" id="stamp">Lade Prognose…</div>
-    </div>
-    <div class="spacer"></div>
-    <button class="iconbtn" id="btn-refresh" aria-label="Neu laden">
-      <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
-    </button>
-    <button class="iconbtn" id="btn-settings" aria-label="Einstellungen">
-      <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
-    </button>
-  </header>
-
-  <section class="controls" id="controls"></section>
-  <nav class="tabs" id="tabs" role="tablist" aria-label="Startplätze"></nav>
-  <section class="hero" id="hero" aria-live="polite"><div class="muted">Lade Prognose…</div></section>
-  <section class="card" id="hours"></section>
-  <div class="modules" id="modules"></div>
-
-  <footer>
-    Vorauswahl aus Wettermodellen. Ersetzt nicht den Blick auf Live-Wind, Himmel und die Einschätzung deines Fluglehrers.
-    <span id="credits"></span>
-  </footer>
-</div>
-
-<dialog id="settings" aria-labelledby="set-title">
-  <form class="dlg" method="dialog">
-    <div class="dlg-head">
-      <h2 id="set-title">Einstellungen</h2>
-      <button class="iconbtn" value="cancel" aria-label="Schließen"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-    </div>
-    <div class="hint">Gespeichert nur auf diesem Gerät. Änderst du einen Grenzwert, steht der Regler auf „Eigene Werte“. Bei Wolkenbasis und Lifted Index ist kleiner schlechter (↓).</div>
-    <fieldset id="fs-limits"></fieldset>
-    <fieldset id="fs-extra"></fieldset>
-    <fieldset id="fs-modules"></fieldset>
-    <div class="btn-row">
-      <button type="button" class="btn" id="btn-reset">Alles auf Anfänger zurücksetzen</button>
-      <button type="button" class="btn primary" id="btn-save">Speichern</button>
-    </div>
-  </form>
-</dialog>
-
-<script src="region-walgau.js"></script>
-<script src="app.js"></script>
+<p>Flugwetter Walgau ist umgezogen: <a href="https://flugwetter.leander-digital.workers.dev/walgau">flugwetter.leander-digital.workers.dev/walgau</a></p>
 </body>
 </html>
