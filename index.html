@@ -57,13 +57,17 @@
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; color: var(--ink);
-  background: linear-gradient(180deg, var(--bg-top) 0, var(--bg) 420px) var(--bg);
+  background: var(--bg);
   font: 15px/1.45 var(--font-body);
   padding-left: max(14px, env(safe-area-inset-left, 0px));
   padding-right: max(14px, env(safe-area-inset-right, 0px));
   padding-block: env(safe-area-inset-top, 0px) calc(env(safe-area-inset-bottom, 0px) + 32px);
 }
-.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 12px; }
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, rgb(8 14 22 / .05) 0, rgb(8 14 22 / .18) 40%, color-mix(in srgb, var(--bg) 70%, transparent) 75%, var(--bg) 100%), url("bg.jpg") center 35% / cover no-repeat, var(--bg); }
+.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 12px; position: relative; }
+.controls, .card, .hero, .tab, .iconbtn { background: color-mix(in srgb, var(--surface) 72%, transparent) !important; -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
+.tab[aria-selected="true"] { background: var(--ink) !important; }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -76,10 +80,10 @@ a { color: var(--accent); }
 
 /* Kopf */
 header.top { display: flex; align-items: center; gap: 10px; padding-top: 12px; }
-header.top h1 { font-family: var(--font-display); font-weight: 800; font-size: 27px; line-height: 1; margin: 0; letter-spacing: .01em; }
+header.top h1 { font-family: var(--font-display); font-weight: 800; font-size: 27px; line-height: 1; margin: 0; letter-spacing: .01em; color: #fff; text-shadow: 0 1px 10px rgb(0 0 0 / .45); }
 header.top h1 span { color: var(--accent); }
 header.top .logo { width: 42px; height: 42px; flex: none; }
-header.top .sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+header.top .sub { font-size: 12px; color: #ffffffd9; margin-top: 3px; text-shadow: 0 1px 6px rgb(0 0 0 / .5); }
 header.top .spacer { flex: 1; }
 .iconbtn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; flex: none; }
 .iconbtn svg { width: 20px; height: 20px; stroke: var(--ink); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -271,6 +275,14 @@ ul.notes { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .mk .tag { background: rgb(15 22 28 / .85); color: #fff; font: 600 11px/1.2 var(--font-body); padding: 2px 6px; border-radius: 6px; white-space: nowrap; }
 .mk.sel .bub { border-color: var(--accent); border-width: 3px; }
 .mk.land .bub { width: 18px; height: 18px; background: #fff; color: #13202a; font: 700 10px var(--font-data); border-width: 1px; }
+.camtl { display: grid; grid-template-columns: auto auto 1fr auto; gap: 8px; align-items: center; }
+.camtl .seg { grid-template-columns: 1fr 1fr; padding: 2px; }
+.camtl .seg button { padding: 4px 8px; font-size: 12px; }
+.camtl input[type=range] { width: 100%; accent-color: var(--accent); min-width: 0; }
+.camtl .tltime { font-family: var(--font-data); font-size: 12.5px; font-weight: 700; min-width: 44px; text-align: right; }
+.playbtn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-2); display: grid; place-items: center; padding: 0; }
+.playbtn svg { width: 14px; height: 14px; fill: var(--ink); }
+.cam .tlbadge { left: auto; right: 8px; background: var(--accent); }
 footer { font-size: 12px; color: var(--muted); text-align: center; text-wrap: balance; padding-top: 4px; }
 
 /* Einstellungen */
@@ -325,6 +337,7 @@ legend { padding: 0 6px; font-weight: 600; }
   <footer>
     Vorauswahl aus Wettermodellen. Ersetzt nicht den Blick auf Live-Wind, Himmel und die Einschätzung deines Fluglehrers.
     Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), GeoSphere Austria, Holfuy, walgauwetter.at.
+    Hintergrund: Anton Repponen, „Paraglider in orange clouds“ (CC0, via Wikimedia Commons).
   </footer>
 </div>
 
@@ -353,7 +366,9 @@ legend { padding: 0 6px; font-weight: 600; }
    Neuer Startplatz = neuer Eintrag in SITES.
    ============================================================ */
 const LANDING_RIED = { name: "Landeplatz Ried", lat: 47.2105, lon: 9.7214, elev: 650 };
-const CAM_HENSLER = { label: "Startplatz Hensler", img: "https://holfuy.com/en/takeit/cam/s721.jpg", link: "https://holfuy.com/de/camera/721" };
+// archive: Holfuy speichert alle 10 min unter <base>YYYY-MM-DD_HH:M1.jpg (Minute schwankt um 1–2)
+const CAM_HENSLER = { label: "Startplatz Hensler", img: "https://holfuy.com/en/takeit/cam/s721.jpg", link: "https://holfuy.com/de/camera/721",
+  archive: { base: "https://holfuy.com/dynamic/camsave/s721/", from: 7, to: 19 } };
 const CAM_HENSLER_REF = { ...CAM_HENSLER, label: "Hensler (Referenz)" };
 const HOLFUY_HENSLER = [{ id: 721, label: "Start Hensler" }, { id: 1389, label: "Landeplatz Ried" }];
 
@@ -1100,7 +1115,7 @@ function renderDetail(h) {
    keep: Inhalt bleibt beim Neuzeichnen stehen (iframes, Bilder), solange Startplatz und Datenstand gleich sind.
    ============================================================ */
 const MODULES = {
-  live:    { title: "Live am Start", render: renderLive, keep: true },
+  live:    { title: "Live am Start", render: renderLive, keep: true, update: bindCamTimelines },
   profile: { title: "Windprofil", render: renderProfile },
   map3d:   { title: "3D-Karte Walgau", render: renderMap3d, keep: "always", update: updateMap },
   history: { title: "Windverlauf", render: renderHistory },
@@ -1131,14 +1146,90 @@ function renderModules(only) {
 /* --- Live: Webcams, Holfuy-Widgets, Talstationen --- */
 const camURL = u => u + (u.includes("?") ? "&" : "?") + "t=" + Math.floor(Date.now() / 300000);
 function renderLive(s) {
-  const cams = `<div class="cams${s.cams.length === 1 ? " single" : ""}">${s.cams.map(c =>
-    `<a class="cam" href="${c.link}" target="_blank" rel="noopener"><img data-cam="${c.img}" src="${camURL(c.img)}" alt="Webcam ${c.label}" loading="lazy"><span>${c.label}</span></a>`).join("")}</div>`;
+  const cams = `<div class="cams${s.cams.length === 1 ? " single" : ""}">${s.cams.map((c, i) =>
+    `<a class="cam" href="${c.link}" target="_blank" rel="noopener"><img data-cam="${c.img}" data-cam-idx="${i}" src="${camURL(c.img)}" alt="Webcam ${c.label}" loading="lazy"><span>${c.label}</span><span class="tlbadge" hidden></span></a>`).join("")}</div>`
+    + s.cams.map((c, i) => c.archive ? `<div class="camtl" data-tl="${i}">
+      <div class="seg" role="group" aria-label="Tag"><button type="button" data-tlday="0" aria-pressed="true">Heute</button><button type="button" data-tlday="1" aria-pressed="false">Gestern</button></div>
+      <button type="button" class="playbtn" aria-label="Zeitraffer abspielen"><svg viewBox="0 0 16 16"><path d="M4 2 L14 8 L4 14 Z"/></svg></button>
+      <input type="range" aria-label="Webcam-Zeit ${c.label}" min="0" max="0" value="0">
+      <span class="tltime">Live</span></div>` : "").join("");
   const widgets = s.holfuy.map(h => `
     <div class="label">Holfuy ${h.label} · heute, 15-min-Werte</div>
     <iframe class="holfuy-frame" title="Holfuy ${h.label}" loading="lazy" src="https://widget.holfuy.com/?station=${h.id}&su=km/h&t=C&lang=de&mode=average&avgrows=32"></iframe>`).join("");
   return `<h2>Live am Start <small><a href="https://holfuy.com/de/weather/${s.holfuy[0].id}" target="_blank" rel="noopener">Holfuy öffnen</a></small></h2>
     ${isSim() ? `<div class="flag sim">Rückblick aktiv: Webcams und Messwerte zeigen trotzdem jetzt.</div>` : ""}
     ${cams}${widgets}${renderStations()}`;
+}
+/* Webcam-Zeitregler: 10-min-Slots, Bild aus dem Holfuy-Archiv, Zeitraffer per Play */
+function camSlots(arch, dayOffset) {
+  const d = new Date(Date.now() - dayOffset * 864e5), date = dateStr(d), out = [];
+  const nowKey = localKey(new Date()), nowMin = +nowKey.slice(11, 13) * 60 + new Date().getMinutes();
+  for (let m = arch.from * 60; m <= arch.to * 60; m += 10) {
+    if (dayOffset === 0 && m > nowMin - 12) break;   // jüngstes Archivbild hängt ca. 10 min nach
+    out.push({ date, h: Math.floor(m / 60), m: m % 60 });
+  }
+  return out;
+}
+function loadArchiveImg(arch, slot) {
+  const pad = n => String(n).padStart(2, "0");
+  const tries = [1, 2, 0, 3].map(o => `${arch.base}${slot.date}_${pad(slot.h)}:${pad(slot.m + o)}.jpg`);
+  return new Promise(res => {
+    const next = i => {
+      if (i >= tries.length) return res(null);
+      const im = new Image(); im.onload = () => res(tries[i]); im.onerror = () => next(i + 1); im.src = tries[i];
+    };
+    next(0);
+  });
+}
+function bindCamTimelines(sec, s) {
+  sec.querySelectorAll(".camtl").forEach(tl => {
+    if (tl.dataset.bound) return; tl.dataset.bound = "1";
+    const idx = +tl.dataset.tl, cam = s.cams[idx], arch = cam.archive;
+    const img = sec.querySelector(`img[data-cam-idx="${idx}"]`), badge = img.parentElement.querySelector(".tlbadge");
+    const range = tl.querySelector("input"), label = tl.querySelector(".tltime"), play = tl.querySelector(".playbtn");
+    let day = 0, slots = [], timer = null, seq = 0;
+    const setup = () => {
+      slots = camSlots(arch, day);
+      range.max = String(slots.length);            // letzter Wert = Live (heute) bzw. Tagesende
+      range.value = String(slots.length);
+      show();
+    };
+    const show = async () => {
+      const i = +range.value, my = ++seq;
+      if (day === 0 && i >= slots.length) {
+        delete img.dataset.tl; img.src = camURL(cam.img); label.textContent = "Live"; badge.hidden = true; return;
+      }
+      const slot = slots[Math.min(i, slots.length - 1)];
+      if (!slot) return;
+      const t = `${slot.h}:${String(slot.m).padStart(2, "0")}`;
+      label.textContent = t; img.dataset.tl = "1";
+      const url = await loadArchiveImg(arch, slot);
+      if (my !== seq) return;                       // inzwischen weitergeschoben
+      if (url) { img.src = url; badge.hidden = false; badge.textContent = (day ? "Gestern " : "") + t; }
+      else { badge.hidden = false; badge.textContent = "kein Bild " + t; }
+    };
+    const stop = () => { clearTimeout(timer); timer = null; play.innerHTML = `<svg viewBox="0 0 16 16"><path d="M4 2 L14 8 L4 14 Z"/></svg>`; play.setAttribute("aria-label", "Zeitraffer abspielen"); };
+    const step = async () => {
+      let i = +range.value + 1;
+      if (i > slots.length - (day === 0 ? 0 : 1)) { stop(); return; }
+      range.value = String(i); await show();
+      timer = setTimeout(step, 350);
+    };
+    range.addEventListener("input", () => { stop(); show(); });
+    play.addEventListener("click", () => {
+      if (timer) { stop(); return; }
+      if (+range.value >= slots.length - (day === 0 ? 0 : 1)) range.value = "0";
+      play.innerHTML = `<svg viewBox="0 0 16 16"><path d="M4 2 H7 V14 H4 Z M9 2 H12 V14 H9 Z"/></svg>`; play.setAttribute("aria-label", "Zeitraffer anhalten");
+      timer = setTimeout(step, 10);
+    });
+    tl.querySelectorAll("[data-tlday]").forEach(b => b.addEventListener("click", () => {
+      stop(); day = +b.dataset.tlday;
+      tl.querySelectorAll("[data-tlday]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      setup();
+      if (day === 1) { range.value = String(Math.floor(slots.length / 2)); show(); }
+    }));
+    setup();
+  });
 }
 function renderStations() {
   const L = DATA.live;
@@ -1618,7 +1709,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && !isSim() && DATA.fetchedAt && Date.now() - DATA.fetchedAt > 15 * 60e3) load();
 });
 // Webcams alle 5 Minuten auffrischen, ohne den Rest neu zu zeichnen
-setInterval(() => document.querySelectorAll("img[data-cam]").forEach(img => img.src = camURL(img.dataset.cam)), 300e3);
+setInterval(() => document.querySelectorAll("img[data-cam]:not([data-tl])").forEach(img => img.src = camURL(img.dataset.cam)), 300e3);
 
 renderAll();
 load();
