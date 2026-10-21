@@ -1,0 +1,7 @@
+name = "flugwetter-burnair"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+# Erlaubte Dashboards (kommagetrennt)
+ALLOWED_ORIGINS = "https://lfritsche.github.io,http://localhost:8000"

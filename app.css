@@ -191,7 +191,8 @@ nav.tabs::-webkit-scrollbar { display: none; }
 .htable .c.past { opacity: .4; }
 .htable .c.sel { outline: 2px solid var(--ink); outline-offset: 0; }
 .htable .c svg { width: 18px; height: 18px; }
-.htable .c.meas, .htable .c.suspect { position: relative; }
+.htable .c.meas, .htable .c.suspect, .htable .c.ba { position: relative; }
+.htable .c.ba::after { content: "b"; position: absolute; right: 2px; top: -1px; font-size: 9px; font-weight: 700; color: var(--sim); }
 .htable .c.suspect::after { content: "?"; position: absolute; right: 1px; top: -2px; font-size: 9px; font-weight: 700; color: var(--warn); }
 .htable .c.meas::after { content: ""; position: absolute; right: 2px; top: 2px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--muted); }
@@ -274,6 +275,14 @@ ul.notes { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .playbtn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-2); display: grid; place-items: center; padding: 0; }
 .playbtn svg { width: 14px; height: 14px; fill: var(--ink); }
 .cam .tlbadge { left: auto; right: 8px; background: var(--accent); }
+.brief { border-left: 4px solid var(--nodata); background: color-mix(in srgb, var(--surface-2) 80%, transparent); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
+.brief.l0 { border-left-color: var(--go); } .brief.l1 { border-left-color: var(--warn); } .brief.l2 { border-left-color: var(--stop); }
+.brief-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.brief p { margin: 0; font-weight: 600; font-size: 15px; text-wrap: pretty; }
+.brief dl { margin: 0; display: grid; grid-template-columns: 70px 1fr; gap: 4px 10px; font-size: 13.5px; }
+.brief dt { color: var(--muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding-top: 2px; }
+.brief dd { margin: 0; }
+.explain-box { background: var(--surface-2); border-radius: 8px; padding: 8px 12px; display: grid; gap: 4px; font-size: 13.5px; }
 footer { font-size: 12px; color: var(--muted); text-align: center; text-wrap: balance; padding-top: 4px; }
 
 /* Einstellungen */

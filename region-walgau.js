@@ -16,6 +16,7 @@ window.REGION = {
   foehn: {
     primary:   { label: "Bozen − Innsbruck", a: { lat: 46.50, lon: 11.35 }, b: { lat: 47.26, lon: 11.39 } },
     secondary: { label: "Lugano − Zürich",   a: { lat: 46.00, lon: 8.96 },  b: { lat: 47.46, lon: 8.55 } },
+    posName: "Südföhn", negName: "Nordströmung",
     explain: "Positiv = Südföhn-Tendenz.",
     warnStation: { id: "11304", name: "Brand", sector: [135, 225], dirLabel: "Südwind", note: "Föhn kommt dort zuerst an." },
   },
@@ -23,7 +24,7 @@ window.REGION = {
   {
     id: "hensler", name: "Hensler", area: "Schnifis", lat: 47.2283, lon: 9.7409, elev: 1305,
     // Sektoren aus der Holfuy-Stationskonfiguration 721 (optimal / fliegbar)
-    sector: [160, 240], sectorWide: [110, 270], sectorLabel: "SSO–WSW",
+    sector: [160, 240], sectorWide: [110, 270], sectorLabel: "SSO–WSW", sectorSource: "Holfuy",
     landing: LANDING_RIED, holfuy: HOLFUY_HENSLER, cams: [CAM_HENSLER], historyStation: "11099",
     notes: [
       "Walgau-Talwind (W/NW) setzt im Sommer ab ca. 13 Uhr ein: Lee und Rotor am Start möglich.",
@@ -35,7 +36,7 @@ window.REGION = {
   {
     id: "bazora", name: "Bazora", area: "Frastanz", lat: 47.1889, lon: 9.6246, elev: 1390,
     // Sektoren aus der Holfuy-Stationskonfiguration 2027 (optimal / fliegbar)
-    sector: [300, 360], sectorWide: [280, 20], sectorLabel: "WNW–N",
+    sector: [300, 360], sectorWide: [280, 20], sectorLabel: "WNW–N", sectorSource: "Holfuy",
     landing: { name: "Landeplatz Galinawald", lat: 47.200, lon: 9.630, elev: 490, approx: true },
     holfuy: [{ id: 2027, label: "Start Bazora" }], historyStation: "11105",
     cams: ["bergstation", "rheintal", "skipiste"].map(c => ({

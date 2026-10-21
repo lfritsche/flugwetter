@@ -17,6 +17,7 @@ window.REGION = {
     // Positiv = Nordföhn. Das Föhndiagramm des Landeswetterdienstes zeigt Bozen − Innsbruck, dort ist Nordföhn negativ.
     primary:   { label: "Innsbruck − Bozen", a: { lat: 47.26, lon: 11.39 }, b: { lat: 46.50, lon: 11.35 } },
     secondary: { label: "Bozen − Innsbruck (Südföhn)", a: { lat: 46.50, lon: 11.35 }, b: { lat: 47.26, lon: 11.39 } },
+    posName: "Nordföhn", negName: "Südströmung",
     explain: "Positiv = Nordföhn, der Hauptfeind im Pustertal. Achtung: Das Föhndiagramm des Landeswetterdienstes zeigt Bozen − Innsbruck, dort ist Nordföhn negativ.",
     warnStation: { id: "45100WS", name: "Regelspitze (Gsies, 2747 m)", sector: [315, 45], dirLabel: "Nordwind", note: "Nordföhn zeigt sich am Hauptkamm zuerst." },
   },
@@ -38,19 +39,27 @@ window.REGION = {
     },
     {
       id: "kronplatz", name: "Kronplatz", area: "Reischach", lat: 46.7396, lon: 11.9589, elev: 2260,
-      // mehrere Startplätze am Gipfel: Nordseite Richtung Reischach optimal, andere Seiten mit Ortskenntnis
-      sector: [290, 70], sectorWide: [0, 360], sectorLabel: "NW–NO (Gipfel, alle Seiten)",
+      // mehrere Startplätze am Gipfel; pro Stunde wird der passende gewählt
+      sector: [290, 70], sectorLabel: "N · W · SO (mehrere Starts)",
+      launches: [
+        { name: "Nord (Antenne/Kapelle)", short: "N", sector: [315, 45], sectorWide: [290, 70], sectorLabel: "N (NW–NO)", calmOk: true },
+        { name: "West (Finanzwache)", short: "W", sector: [250, 290], sectorWide: [230, 310], sectorLabel: "W (SW–NW)" },
+        { name: "Südost", short: "SO", sector: [120, 170], sectorWide: [100, 190], sectorLabel: "SO (O–S)", capYellow: true },
+      ],
       landing: { name: "Landeplatz Reischach", lat: 46.7735, lon: 11.9380, elev: 950 }, historyStation: "59700MS",
       cams: [fw("kronplatz", "Kronplatz Gipfel"), { label: "Kronplatz Gipfel (offiziell)", img: "https://webcams.kronplatz.com/webcam/kronplatz/150/webcam15.jpg", link: "https://www.kronplatz.com/de/der-kronplatz/webcams" }],
       liveLink: { t: "Wetter Kronplatz", u: "https://www.kronplatz.com/de/der-kronplatz/wetter" },
       notes: [
         "Gondel Kronplatz 2000 ab Reischach, 9–17 Uhr, laut Tourismusseiten bis 8.11. (beim Betreiber prüfen). Wintersaison ab ca. 28.11. Bike/Para-Ticket ca. 5 €.",
-        "Nordwind/kein Wind: Start an der großen Antenne bei der Kapelle. Westwind: hinter der Finanzwache, Soaring an der Kante möglich.",
+        "Nordwind/kein Wind: Start an der großen Antenne bei der Kapelle. Westwind: hinter der Finanzwache, Soaring an der Kante möglich. Südost-Start: nach Süden kaum Landemöglichkeiten, für Anfänger nur gelb.",
         "Seilbahnen auf allen Seiten (Reischach, Olang, Piz de Plaies). Viel Tandembetrieb.",
         "Talwind in Reischach ab Mittag zunehmend: früh landen. Nach Süden kaum Landemöglichkeiten.",
         "Im Winter nicht von der Piste nach Osten starten. Ca. 30 min von Gsies.",
       ],
-      rules: [{ type: "closedDates", ranges: [["11-09", "11-27"]], label: "Gondel außer Betrieb (zwischen den Saisonen)" }],
+      rules: [
+        { type: "closedDates", ranges: [["11-09", "11-27"]], label: "Gondel außer Betrieb (zwischen den Saisonen)" },
+        { type: "lift", hours: [9, 16], label: "Gondel Reischach (9–17 Uhr)" },
+      ],
     },
     {
       id: "gsies", name: "Spielalm / Uwaldalm", area: "Gsiesertal", lat: 46.8573, lon: 12.2670, elev: 2200,
@@ -92,6 +101,7 @@ window.REGION = {
       ],
       rules: [
         { type: "closedDates", ranges: [["10-19", "12-05"], ["04-15", "05-29"]], label: "Bahn außer Betrieb" },
+        { type: "lift", hours: [9, 16], label: "Sonnklar-Lift (8:45–16:30 Uhr)" },
         { type: "lee", sector: [315, 45], minSpeed: 15, label: "Starke Nordströmung in der Höhe" },
       ],
     },
