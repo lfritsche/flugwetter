@@ -24,7 +24,7 @@ window.REGION = {
     {
       id: "ahornach", name: "Ahornach", area: "Sand in Taufers", lat: 46.9262, lon: 11.9678, elev: 1429,
       sector: [195, 245], sectorWide: [165, 260], sectorLabel: "S–SW",
-      landing: LANDING_SAND, historyStation: "56900MS",
+      landing: LANDING_SAND, historyStation: "56900MS", measureStation: "56900MS",
       cams: [fw("amonti", "Mühlen in Taufers")],
       liveLink: { t: "Wetterstation Landeplatz", u: "http://stazioni.soluzionimeteo.it/tures/index.php" },
       notes: [
@@ -55,7 +55,7 @@ window.REGION = {
     {
       id: "gsies", name: "Spielalm / Uwaldalm", area: "Gsiesertal", lat: 46.8573, lon: 12.2670, elev: 2200,
       sector: [160, 200], sectorWide: [135, 225], sectorLabel: "S (SO–SW)",
-      landing: { name: "Landeplatz Bruggen", lat: 46.8422, lon: 12.2480, elev: 1460 }, historyStation: "44500MS",
+      landing: { name: "Landeplatz Bruggen", lat: 46.8422, lon: 12.2480, elev: 1460 }, historyStation: "44500MS", measureStation: "45200SF",
       cams: [fw("taisten", "Taisten")],
       liveLink: { t: "Webcams Gsies", u: "https://webcam.valcasies.com" },
       notes: [
@@ -70,7 +70,7 @@ window.REGION = {
     {
       id: "pfalzen", name: "Plata", area: "Pfalzen", lat: 46.8289, lon: 11.8765, elev: 1590,
       sector: [160, 200], sectorWide: [135, 225], sectorLabel: "S (SO–SW)",
-      landing: { name: "Landeplatz Sportplatz Pfalzen", lat: 46.8095, lon: 11.8840, elev: 1020, approx: true }, historyStation: "59700MS",
+      landing: { name: "Landeplatz Sportplatz Pfalzen", lat: 46.8095, lon: 11.8840, elev: 1020, approx: true }, historyStation: "59700MS", measureStation: "65600MS",
       cams: [fw("bruneck", "Bruneck")],
       notes: [
         "Schulungsgelände der Flugschule Südtirol: gut für Einsteiger. Holzrampe und Wiesenstart.",
@@ -82,7 +82,7 @@ window.REGION = {
     {
       id: "speikboden", name: "Speikboden", area: "Luttach", lat: 46.9150, lon: 11.8992, elev: 2400,
       sector: [135, 225], sectorWide: [45, 250], sectorLabel: "S (NO–SW möglich)",
-      landing: LANDING_SAND, historyStation: "53200SF",
+      landing: LANDING_SAND, historyStation: "53200SF", measureStation: "53200SF",
       cams: [{ label: "Speikboden Sonnklar 2400 m", img: "https://live-image.panomax.com/cams/8058/sonnklar1.jpg", link: "https://speikboden.panomax.com/sonnklar" }],
       notes: [
         "Bahn: Kabinenbahn bis 2000 m, dann Sessellift Sonnklar bis 2400 m. Sommersaison 30.5.–18.10., Winter ab ca. Dezember.",
@@ -130,6 +130,7 @@ window.REGION = {
     { id: "56900MS", name: "Sand-Mühlen", elev: 851, role: "Landeplatz Ahornach" },
     { id: "53200SF", name: "Fadner Alm", elev: 2155, role: "Höhe Ahrntal / Speikboden" },
     { id: "41000MS", name: "Toblach", elev: 1219, role: "Hochpustertal" },
+    { id: "65600MS", name: "Terenten", elev: 1349, role: "Messung für Pfalzen" },
   ],
   LINKS: [
     { t: "Föhndiagramm Südtirol", d: "Bozen − Innsbruck, Nordföhn = negativ", u: "https://weather.provinz.bz.it/foehn-chart.asp" },
@@ -142,6 +143,8 @@ window.REGION = {
     { t: "Kronplatz auf paragliding365", d: "Startplätze, Landeplatz", u: "https://www.paragliding365.com/index-p-flightarea_details_349.html" },
     { t: "Flugschule Südtirol", d: "Pfalzen, Antholz", u: "https://flugschule-suedtirol.it/" },
     { t: "foto-webcam.eu", d: "Webcams mit Archiv", u: "https://www.foto-webcam.eu/" },
+    { t: "xcTherm", d: "Thermikprognose (Login/Abo)", u: "https://xctherm.com/" },
+    { t: "Burnair", d: "Startplatz-Prognose (Abo)", u: "https://map.burnair.cloud/" },
     { t: "DHV-Wetter", d: "Alpenwetter für Piloten", u: "https://www.dhv.de/wetter/dhv-wetter/" },
     { t: "Windy", d: "Großwetterlage, Höhenwind", u: "https://www.windy.com/46.85/12.05?46.7,12.0,9" },
   ],

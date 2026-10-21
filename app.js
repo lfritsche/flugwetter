@@ -54,6 +54,12 @@ const EXTRA_DEFS = [
 ];
 
 /* Ansichten */
+/* Flugart: Hike & Fly (Abgleiter in Geländenähe) oder Thermik / Strecke */
+const FLIGHTS = {
+  hf: { label: "Hike & Fly / Abgleiter", short: "Hike & Fly" },
+  xc: { label: "Thermik / Strecke", short: "Thermik / Strecke" },
+};
+const XC = { blhGood: 1500, blhMin: 800, baseGood: 1000, baseMin: 500 };   // m über Grund / über Start
 const MODES = {
   live: { label: "Live 3 Tage", days: 3 },
   week: { label: "7 Tage", days: 7 },
@@ -75,7 +81,7 @@ function presetLimits(i) {
 function defaultSettings() {
   const extra = {}; EXTRA_DEFS.forEach(d => extra[d.key] = d.v);
   const modules = {}; MODULE_IDS.forEach(id => modules[id] = true);
-  return { level: 0, levelBase: 0, limits: presetLimits(0), extra, modules, order: MODULE_IDS.slice(), tab: SITES[0].id, mode: "live" };
+  return { level: 0, levelBase: 0, limits: presetLimits(0), extra, modules, order: MODULE_IDS.slice(), tab: SITES[0].id, mode: "live", flight: "hf" };
 }
 function loadSettings() {
   const def = defaultSettings();
@@ -92,6 +98,7 @@ function loadSettings() {
       order: MODULE_IDS.reduce((o, id, i) => { if (!o.includes(id)) o.splice(Math.min(i, o.length), 0, id); return o; }, order.slice()),
       tab: SITES.some(x => x.id === s.tab) ? s.tab : def.tab,
       mode: MODES[s.mode] && s.mode !== "sim" ? s.mode : "live",   // Rückblick startet nie automatisch
+      flight: FLIGHTS[s.flight] ? s.flight : "hf",
     };
   } catch (e) { return def; }
 }
@@ -182,7 +189,7 @@ const PROVIDERS = {
       return out;
     },
     async history(hoursBack) {
-      const ids = [...new Set(SITES.map(s => s.historyStation))];
+      const ids = [...new Set(SITES.flatMap(s => [s.historyStation, s.measureStation]).filter(Boolean))];
       const start = new Date(Date.now() - hoursBack * 3600e3).toISOString().slice(0, 16);
       const end = new Date().toISOString().slice(0, 16);
       const q = new URLSearchParams({ parameters: "DD,FF,FFX", station_ids: ids.join(","), start, end });
@@ -213,7 +220,7 @@ PROVIDERS.suedtirol = {
     return out;
   },
   async history(hoursBack) {
-    const ids = [...new Set(SITES.map(s => s.historyStation))];
+    const ids = [...new Set(SITES.flatMap(s => [s.historyStation, s.measureStation]).filter(Boolean))];
     const from = ymd(new Date(Date.now() - hoursBack * 3600e3)), to = ymd(new Date(Date.now() + 864e5));
     const out = {};
     await Promise.all(ids.map(async id => {
@@ -240,19 +247,26 @@ const at = (h, k, m, i) => { const a = h[k + "_" + m]; return a ? a[i] : null; }
 const inSector = (dir, [a, b]) => a <= b ? dir >= a && dir <= b : dir >= a || dir <= b;
 const angDist = (x, y) => { const d = Math.abs(x - y) % 360; return d > 180 ? 360 - d : d; };
 
-function buildHours(site, fc, foehn) {
+function buildHours(site, fc, foehn, hist) {
   const L = fc.launch, G = fc.land;
+  const meas = site.measureStation && hist && hist[site.measureStation];
+  const measName = site.measureStation && (STATION_NAME[site.measureStation] || site.measureStation);
+  const nowKey = isSim() ? "9999" : nowLocalKey();
   return L.time.map((t, i) => {
     const wD2 = at(L, "wind_speed_10m", "icon_d2", i), wCH = at(L, "wind_speed_10m", "meteoswiss_icon_ch2", i);
     const gD2 = at(L, "wind_gusts_10m", "icon_d2", i), gCH = at(L, "wind_gusts_10m", "meteoswiss_icon_ch2", i);
     // Hochauflösend zuerst (schlechterer Wert), danach Fallback auf ICON-EU / ECMWF
     const fine = wD2 != null || wCH != null;
     const wEU = at(L, "wind_speed_10m", "icon_eu", i), wEC = at(L, "wind_speed_10m", "ecmwf_ifs025", i);
-    const windLaunch = fine ? mx(wD2, wCH) : mx(wEU, wEC);
-    const gust = fine ? mx(gD2, gCH) : mx(at(L, "wind_gusts_10m", "icon_eu", i), at(L, "wind_gusts_10m", "ecmwf_ifs025", i));
+    let windLaunch = fine ? mx(wD2, wCH) : mx(wEU, wEC);
+    let gust = fine ? mx(gD2, gCH) : mx(at(L, "wind_gusts_10m", "icon_eu", i), at(L, "wind_gusts_10m", "ecmwf_ifs025", i));
     let dir;
     if (fine) dir = (wD2 != null && (wCH == null || wD2 >= wCH)) ? at(L, "wind_direction_10m", "icon_d2", i) : at(L, "wind_direction_10m", "meteoswiss_icon_ch2", i);
     else dir = at(L, "wind_direction_10m", "icon_eu", i) ?? at(L, "wind_direction_10m", "ecmwf_ifs025", i);
+    // Messung schlägt Modell: Modelle treffen den Bodenwind in engen Tälern oft nicht
+    const m = meas && t <= nowKey ? meas[t] : null;
+    const model = m ? { dir, windLaunch, gust } : null;
+    if (m) { dir = m.dir; windLaunch = m.ff; gust = m.ffx; }
     const landFine = mx(at(G, "wind_speed_10m", "icon_d2", i), at(G, "wind_speed_10m", "meteoswiss_icon_ch2", i));
     const cb = at(L, "cloud_base", "meteoswiss_icon_ch2", i);
     const cloudBase = cb == null || cb > 15000 ? null : cb;   // >15 km = keine Wolke
@@ -274,8 +288,9 @@ function buildHours(site, fc, foehn) {
       lowCloud: mx(at(L, "cloud_cover_low", "icon_d2", i), at(L, "cloud_cover_low", "meteoswiss_icon_ch2", i)),
       blh: at(L, "boundary_layer_height", "gfs_seamless", i),
       foehn: f ? (f.bi ?? f.lz) : null,
-      lowConf: wD2 == null,
-      modelGustDiff: gD2 != null && gCH != null ? Math.abs(gD2 - gCH) : null,
+      lowConf: wD2 == null && !m,
+      measured: m ? measName : null, model,
+      modelGustDiff: !m && gD2 != null && gCH != null ? Math.abs(gD2 - gCH) : null,
     };
   });
 }
@@ -304,6 +319,11 @@ function scoreHour(hr, site) {
     const lim = S.limits[p.key], v = hr[p.key];
     let lv = grade(v, lim, p.invert);
     if (p.key === "cloud" && lv != null && hr.lowCloud != null && hr.lowCloud >= 90 && v < lim.r) lv = 2;
+    // Hike & Fly: 700 hPa (~3000 m) liegt über der Flughöhe, starke Thermik nur Hinweis → höchstens gelb
+    if (S.flight === "hf" && (p.key === "w700" || p.key === "blh") && lv === 2) lv = 1;
+    // Thermik/Strecke: hohe Grenzschicht und Basis sind erwünscht; zu wenig davon = gelb ("kaum Thermik")
+    if (S.flight === "xc" && p.key === "blh" && v != null) lv = v >= XC.blhGood ? 0 : 1;
+    if (S.flight === "xc" && p.key === "cloud" && lv === 0 && v != null && v < XC.baseGood) lv = 1;
     // Böigkeit zählt erst, wenn die Böen selbst über grün liegen (sonst Artefakt bei Windstille)
     if (p.key === "spread" && lv != null && hr.gust != null && hr.gust <= S.limits.gust.g) lv = 0;
     push(p.key, p.label, lv, v == null ? null : fmt(v, p.unit), p.invert ? `≥${lim.g} / <${lim.r}` : `≤${lim.g} / >${lim.r}`, p.weight, p.key2);
@@ -338,7 +358,7 @@ function activeData() { return isSim() ? { fc: DATA.simFc, foehn: DATA.simFoehn,
 
 function evaluateSite(site) {
   const A = activeData();
-  const hours = buildHours(site, A.fc[site.id], A.foehn).map(h => Object.assign(h, { score: scoreHour(h, site) }));
+  const hours = buildHours(site, A.fc[site.id], A.foehn, A.hist).map(h => Object.assign(h, { score: scoreHour(h, site) }));
   const today = nowLocalKey().slice(0, 10);
   const byDay = {};
   hours.forEach(h => {
@@ -413,6 +433,7 @@ function renderControls() {
   const open = el.querySelector("details")?.open ? "open" : "";
   el.innerHTML = `
     <div class="seg" role="group" aria-label="Ansicht">${Object.entries(MODES).map(([k, m]) => `<button type="button" data-mode="${k}" aria-pressed="${S.mode === k}">${m.label}</button>`).join("")}</div>
+    <div class="seg two" role="group" aria-label="Flugart">${Object.entries(FLIGHTS).map(([k, f]) => `<button type="button" data-flight="${k}" aria-pressed="${S.flight === k}">${f.label}</button>`).join("")}</div>
     <div>
       <div class="level-top"><span class="label">Pilotenlevel</span><b>${custom ? "Eigene Werte" : L.name}${custom ? `<small>basiert auf ${L.name}</small>` : ""}</b></div>
       <input type="range" id="level-range" min="0" max="3" step="1" value="${idx}" aria-label="Pilotenlevel" aria-valuetext="${L.name}">
@@ -433,6 +454,10 @@ function renderControls() {
           <li><b>Rot</b>, sobald ein einziger Wert rot ist, die Windrichtung nicht passt oder der Startplatz gesperrt ist.</li>
           <li><b>Grün</b> nur, wenn Wind, Böen, Föhn und Richtung grün sind und die gelben Werte insgesamt wenig wiegen (gewichteter Score unter 15 %).</li>
           <li><b>Sonst gelb.</b> Sind ICON-D2 und ICON-CH2 bei den Böen mehr als ${S.extra.modelSpread} km/h uneinig, wird die Stunde eine Stufe schlechter.</li>
+          <li><b>Flugart ${FLIGHTS[S.flight].short}:</b> ${S.flight === "hf"
+            ? "Höhenwind 700 hPa (ca. 3000 m) und starke Thermik zählen höchstens gelb, weil du in Geländenähe darunter fliegst."
+            : `Höhenwind 700 hPa kann rot machen. Thermik erwünscht: Grenzschicht ab ${XC.blhGood} m und Basis ab ${XC.baseGood} m über Start sind grün, darunter gelb („kaum Thermik“).`}</li>
+          <li><b>Messung schlägt Modell:</b> Für vergangene Stunden und jetzt nimmt das Dashboard Wind und Richtung von der zugeordneten Messstation (z. B. Pfinnalm für die Spielalm), wo es eine gibt. In der Tabelle mit Punkt markiert.</li>
           <li><b>Böigkeit</b> zählt erst, wenn die Böen über ${S.limits.gust.g} km/h liegen.</li>
           <li><b>Richtung:</b> optimaler Sektor grün, fliegbarer Sektor gelb, sonst rot. Unter ${S.extra.calmWind} km/h zählt die Richtung nicht.</li>
           <li><b>Föhn:</b> Druckdifferenz ${FOEHN.primary.label} (${FOEHN.secondary.label} nur als Ersatz). ${FOEHN.explain}</li>
@@ -448,6 +473,7 @@ function renderControls() {
     saveSettings(); recompute();
   });
   el.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+  el.querySelectorAll("[data-flight]").forEach(b => b.addEventListener("click", () => { S.flight = b.dataset.flight; saveSettings(); recompute(); }));
 }
 
 async function setMode(mode) {
@@ -532,10 +558,14 @@ function motto(level, day, future) {
   if (!future.length) return "Tag vorbei.";
   if (level == null) return "Keine Daten.";
   if (level === 0) return ["Ab in die Luft!", "Schirm einpacken!", "Der Startplatz ruft.", "Gute Luft da oben."][day.key.charCodeAt(9) % 4];
-  if (level === 1) return "Möglich. Genau hinschauen.";
+  if (level === 1) {
+    if (S.flight === "xc" && future.some(h => h.score.grades.blh === 1 && h.blh != null && h.blh < XC.blhGood)) return "Fliegbar, aber kaum Thermik.";
+    return "Möglich. Genau hinschauen.";
+  }
   const counts = {};
   future.forEach(h => h.score.reasons.forEach(r => { if (r.level === 2) counts[r.key] = (counts[r.key] || 0) + 1; }));
-  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  const PRIO = ["closed", "foehn", "cape", "li", "rain", "gust", "windLaunch", "spread", "cloud", "windLand", "dir", "w850", "w700", "lee", "blh"];
+  const top = Object.entries(counts).sort((a, b) => (PRIO.indexOf(a[0]) + 99) % 99 - (PRIO.indexOf(b[0]) + 99) % 99 || b[1] - a[1])[0];
   return ({ foehn: "Föhn! Heute am Boden bleiben.", rain: "Regen. Der Schirm bleibt trocken.", cloud: "Start steckt in den Wolken.",
     gust: "Zu böig. Groundhandling statt Flug.", spread: "Zu böig. Groundhandling statt Flug.", windLaunch: "Zu viel Wind am Start.",
     dir: "Wind von der falschen Seite.", cape: "Gewittergefahr. Lieber am Boden.", li: "Gewittergefahr. Lieber am Boden.",
@@ -673,7 +703,7 @@ function renderHours() {
   grid += `<div class="rh">Ampel</div>` + day.hours.map(h => cell(h, "", `amp ${lvClass(h.score.level)}${h.lowConf ? " lowconf" : ""}`)).join("");
   ROWS.forEach(r => {
     grid += `<div class="rh">${r.label}</div>` + day.hours.map(h => {
-      if (r.k === "dir") return cell(h, arrowSVG(h.dir, dirColor(h.score.dirGrade)), "");
+      if (r.k === "dir") return cell(h, arrowSVG(h.dir, dirColor(h.score.dirGrade)), h.measured ? "meas" : "");
       const v = h[r.k], g = h.score.grades[r.k];
       return cell(h, v == null ? "–" : r.f(v), g == null ? "" : "t" + g);
     }).join("");
@@ -681,7 +711,7 @@ function renderHours() {
   const sel = SEL.hour != null ? day.hours.find(h => h.hour === SEL.hour) : null;
   el.innerHTML = `<h2>${dayName(SEL.dayIdx, day.key)}${isSim() ? "" : `, ${p.wd} ${p.dm}`} <small>Spalte antippen für Gründe</small></h2>
     <div class="table-scroll"><div class="htable" style="--cols:${day.hours.length}">${grid}</div></div>
-    <div class="legend"><span>Wind, Böen, 850 hPa in km/h</span><span>Basis = Wolkenbasis über Start, – = wolkenlos</span><span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 3px,var(--surface) 3px 5px)"></i>unsicher</span></div>
+    <div class="legend"><span>Wind, Böen, 850 hPa in km/h</span><span>Basis = Wolkenbasis über Start, – = wolkenlos</span>${site().measureStation ? `<span>• = gemessen (${STATION_NAME[site().measureStation] || ""})</span>` : ""}<span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 3px,var(--surface) 3px 5px)"></i>unsicher</span></div>
     ${sel ? renderDetail(sel) : ""}`;
   el.querySelectorAll(".c[data-hour]").forEach(c => c.addEventListener("click", () => {
     const hr = +c.dataset.hour;
@@ -692,6 +722,7 @@ function renderHours() {
 function renderDetail(h) {
   const sc = h.score, extra = [];
   if (sc.bumped) extra.push(`Modelle uneinig bei Böen (${Math.round(h.modelGustDiff)} km/h): eine Stufe schlechter.`);
+  if (h.measured && h.model) extra.push(`Wind gemessen in ${h.measured}. Modell hätte ${h.model.dir != null ? compassName(h.model.dir) : "–"} ${h.model.windLaunch != null ? Math.round(h.model.windLaunch) : "–"} km/h gesagt.`);
   if (h.lowConf) extra.push("Ohne ICON-D2: Wind aus ICON-CH2 bzw. ICON-EU/ECMWF, Höhenwind aus gröberen Modellen.");
   return `<div class="detail">
     <div class="detail-head"><b>${h.hour}:00 Uhr</b><span class="pill ${lvClass(sc.level)}">${sc.level == null ? "keine Daten" : LEVEL_TXT[sc.level]}</span></div>
@@ -981,7 +1012,7 @@ function renderSiteInfo(s) {
   return `<h2>Startplatz-Info <small>${s.area}</small></h2>
     <ul class="notes">${s.notes.map(n => `<li>${n}</li>`).join("")}</ul>
     <div class="hint">Start ${s.elev} m${s.approx ? " (ungefähr)" : ""} · Richtung ${sec} · ${L.name} ${L.elev} m${L.approx ? " (Lage ungefähr)" : ""}</div>
-    <div class="hint"><a href="https://www.google.com/maps?q=${s.lat},${s.lon}" target="_blank" rel="noopener">Start auf Karte</a> · <a href="https://www.google.com/maps?q=${L.lat},${L.lon}" target="_blank" rel="noopener">Landeplatz auf Karte</a></div>`;
+    <div class="hint"><a href="https://map.burnair.cloud/" target="_blank" rel="noopener">Burnair-Prognose (Startplatz „${s.name}“ suchen)</a> · <a href="https://www.google.com/maps?q=${s.lat},${s.lon}" target="_blank" rel="noopener">Start auf Karte</a> · <a href="https://www.google.com/maps?q=${L.lat},${L.lon}" target="_blank" rel="noopener">Landeplatz auf Karte</a></div>`;
 }
 function renderLinks(s) {
   const own = (s.holfuy || []).map(h => ({ t: "Holfuy " + h.label, d: "Wind live + Verlauf", u: `https://holfuy.com/de/weather/${h.id}` }));

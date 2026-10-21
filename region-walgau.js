@@ -97,6 +97,8 @@ window.REGION = {
   LINKS: [
   { t: "FCA Wetterinfo", d: "Linksammlung der Flugschule", u: "https://www.flugschulearlberg.at/wetterinfo" },
   { t: "SHV: 5 Meteogefahren", d: "Entscheidungsstrategie (PDF)", u: "https://www.meteo-shv.ch/assets/media/Downloads/Meteo/Entscheidungsstrategie_Meteo.pdf" },
+  { t: "xcTherm", d: "Thermikprognose (Login/Abo)", u: "https://xctherm.com/" },
+  { t: "Burnair", d: "Startplatz-Prognose (Abo)", u: "https://map.burnair.cloud/" },
   { t: "DHV-Wetter", d: "Alpenwetter für Piloten", u: "https://www.dhv.de/wetter/dhv-wetter/" },
   { t: "Windy", d: "Großwetterlage, Höhenwind", u: "https://www.windy.com/47.228/9.741?47.0,9.7,8" },
   { t: "Föhndiagramme", d: "windinfo.eu", u: "https://www.windinfo.eu/wettervorhersage/foehndiagramme/" },
