@@ -264,7 +264,8 @@ function buildHours(site, fc, foehn, hist) {
     if (fine) dir = (wD2 != null && (wCH == null || wD2 >= wCH)) ? at(L, "wind_direction_10m", "icon_d2", i) : at(L, "wind_direction_10m", "meteoswiss_icon_ch2", i);
     else dir = at(L, "wind_direction_10m", "icon_eu", i) ?? at(L, "wind_direction_10m", "ecmwf_ifs025", i);
     // Messung schlägt Modell: Modelle treffen den Bodenwind in engen Tälern oft nicht
-    const m = meas && t <= nowKey ? meas[t] : null;
+    let m = meas && t <= nowKey ? meas[t] : null;
+    if (!m && site.measureStation && t === nowKey && DATA.live && DATA.live.st[site.measureStation] && DATA.live.st[site.measureStation].ff != null) m = DATA.live.st[site.measureStation];
     const model = m ? { dir, windLaunch, gust } : null;
     if (m) { dir = m.dir; windLaunch = m.ff; gust = m.ffx; }
     const landFine = mx(at(G, "wind_speed_10m", "icon_d2", i), at(G, "wind_speed_10m", "meteoswiss_icon_ch2", i));
@@ -295,6 +296,25 @@ function buildHours(site, fc, foehn, hist) {
   });
 }
 
+/* Modell-Check: lag das Modell in den letzten gemessenen Stunden bei der Richtung daneben,
+   gilt seine Richtung für die nächsten 12 Stunden als unsicher (höchstens gelb). */
+function modelCheck(site, hours) {
+  if (isSim()) return;
+  const calm = S.extra.calmWind;
+  const checked = hours.filter(h => h.measured && h.model && h.model.dir != null).slice(-5);
+  const wrong = checked.filter(h => {
+    const mod = h.model;
+    if (mod.windLaunch < calm && h.windLaunch < calm) return false;            // beide ruhig
+    if (mod.windLaunch >= calm && h.windLaunch < calm) return true;            // Modell Wind, real ruhig
+    if (mod.windLaunch < calm && h.windLaunch >= calm) return true;
+    return angDist(mod.dir, h.dir) > 60;
+  });
+  if (checked.length < 2 || wrong.length < 2) return;
+  const last = checked[checked.length - 1];
+  const info = `${wrong.length} von ${checked.length} Stunden`;
+  let n = 0;
+  hours.forEach(h => { if (h.t > last.t && !h.measured && n < 12) { h.dirSuspect = info; n++; } });
+}
 function grade(v, lim, invert) {
   if (v == null) return null;
   if (invert) return v >= lim.g ? 0 : v >= lim.r ? 1 : 2;
@@ -329,7 +349,10 @@ function scoreHour(hr, site) {
     push(p.key, p.label, lv, v == null ? null : fmt(v, p.unit), p.invert ? `≥${lim.g} / <${lim.r}` : `≤${lim.g} / >${lim.r}`, p.weight, p.key2);
   });
   const dg = dirGrade(site, hr.dir, hr.windLaunch);
-  if (dg != null) push("dir", PSEUDO.dir.label, Math.max(0, dg), dg === -1 ? "windstill" : `${compassName(hr.dir)} ${Math.round(hr.dir)}°`, site.sectorLabel, PSEUDO.dir.weight, true);
+  if (dg != null) {
+    const lvDir = hr.dirSuspect && dg === 2 ? 1 : Math.max(0, dg);
+    push("dir", PSEUDO.dir.label + (hr.dirSuspect && dg === 2 ? " (Modell unsicher)" : ""), lvDir, dg === -1 ? "windstill" : `${compassName(hr.dir)} ${Math.round(hr.dir)}°`, site.sectorLabel, PSEUDO.dir.weight, true);
+  }
   const month = +hr.day.slice(5, 7);
   (site.rules || []).forEach(rule => {
     if (rule.type === "closed" && rule.months.includes(month)) push("closed", rule.label, 2, "gesperrt", "", PSEUDO.closed.weight, true);
@@ -358,7 +381,9 @@ function activeData() { return isSim() ? { fc: DATA.simFc, foehn: DATA.simFoehn,
 
 function evaluateSite(site) {
   const A = activeData();
-  const hours = buildHours(site, A.fc[site.id], A.foehn, A.hist).map(h => Object.assign(h, { score: scoreHour(h, site) }));
+  const hours = buildHours(site, A.fc[site.id], A.foehn, A.hist);
+  modelCheck(site, hours);
+  hours.forEach(h => h.score = scoreHour(h, site));
   const today = nowLocalKey().slice(0, 10);
   const byDay = {};
   hours.forEach(h => {
@@ -457,6 +482,7 @@ function renderControls() {
           <li><b>Flugart ${FLIGHTS[S.flight].short}:</b> ${S.flight === "hf"
             ? "Höhenwind 700 hPa (ca. 3000 m) und starke Thermik zählen höchstens gelb, weil du in Geländenähe darunter fliegst."
             : `Höhenwind 700 hPa kann rot machen. Thermik erwünscht: Grenzschicht ab ${XC.blhGood} m und Basis ab ${XC.baseGood} m über Start sind grün, darunter gelb („kaum Thermik“).`}</li>
+          <li><b>Modell-Check:</b> Lag das Modell in den letzten gemessenen Stunden mehrfach bei der Richtung daneben, zählt die Modell-Richtung für die nächsten 12 Stunden höchstens gelb (Pfeil mit Fragezeichen).</li>
           <li><b>Messung schlägt Modell:</b> Für vergangene Stunden und jetzt nimmt das Dashboard Wind und Richtung von der zugeordneten Messstation (z. B. Pfinnalm für die Spielalm), wo es eine gibt. In der Tabelle mit Punkt markiert.</li>
           <li><b>Böigkeit</b> zählt erst, wenn die Böen über ${S.limits.gust.g} km/h liegen.</li>
           <li><b>Richtung:</b> optimaler Sektor grün, fliegbarer Sektor gelb, sonst rot. Unter ${S.extra.calmWind} km/h zählt die Richtung nicht.</li>
@@ -703,7 +729,7 @@ function renderHours() {
   grid += `<div class="rh">Ampel</div>` + day.hours.map(h => cell(h, "", `amp ${lvClass(h.score.level)}${h.lowConf ? " lowconf" : ""}`)).join("");
   ROWS.forEach(r => {
     grid += `<div class="rh">${r.label}</div>` + day.hours.map(h => {
-      if (r.k === "dir") return cell(h, arrowSVG(h.dir, dirColor(h.score.dirGrade)), h.measured ? "meas" : "");
+      if (r.k === "dir") return cell(h, arrowSVG(h.dir, h.dirSuspect && h.score.dirGrade === 2 ? "var(--warn)" : dirColor(h.score.dirGrade)), h.measured ? "meas" : h.dirSuspect ? "suspect" : "");
       const v = h[r.k], g = h.score.grades[r.k];
       return cell(h, v == null ? "–" : r.f(v), g == null ? "" : "t" + g);
     }).join("");
@@ -722,6 +748,7 @@ function renderHours() {
 function renderDetail(h) {
   const sc = h.score, extra = [];
   if (sc.bumped) extra.push(`Modelle uneinig bei Böen (${Math.round(h.modelGustDiff)} km/h): eine Stufe schlechter.`);
+  if (h.dirSuspect) extra.push(`Modell-Check: Die Windrichtung des Modells lag heute in ${h.dirSuspect} daneben (Vergleich mit ${STATION_NAME[site().measureStation] || "Messung"}). Richtung zählt deshalb höchstens gelb. Vor Ort Windsack und Burnair prüfen.`);
   if (h.measured && h.model) extra.push(`Wind gemessen in ${h.measured}. Modell hätte ${h.model.dir != null ? compassName(h.model.dir) : "–"} ${h.model.windLaunch != null ? Math.round(h.model.windLaunch) : "–"} km/h gesagt.`);
   if (h.lowConf) extra.push("Ohne ICON-D2: Wind aus ICON-CH2 bzw. ICON-EU/ECMWF, Höhenwind aus gröberen Modellen.");
   return `<div class="detail">

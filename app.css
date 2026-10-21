@@ -191,7 +191,8 @@ nav.tabs::-webkit-scrollbar { display: none; }
 .htable .c.past { opacity: .4; }
 .htable .c.sel { outline: 2px solid var(--ink); outline-offset: 0; }
 .htable .c svg { width: 18px; height: 18px; }
-.htable .c.meas { position: relative; }
+.htable .c.meas, .htable .c.suspect { position: relative; }
+.htable .c.suspect::after { content: "?"; position: absolute; right: 1px; top: -2px; font-size: 9px; font-weight: 700; color: var(--warn); }
 .htable .c.meas::after { content: ""; position: absolute; right: 2px; top: 2px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--muted); }
 .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
