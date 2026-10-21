@@ -12,16 +12,17 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
 <style>
-/* Layout: eine Spalte. Steuerung (Ansicht + Pilotenlevel), Startplatz-Tabs, Hero (Urteil + Kompass + Tage/Kalender),
-   Stundentabelle im Windguru-Stil, darunter Module als Karten. Höhenlinien als dezente Gelände-Textur im Hero. */
+/* Layout: eine Spalte. Steuerung (Ansicht + Pilotenlevel), Startplatz-Tabs, Hero als Bergpanorama
+   (Himmel nach Urteil, Windsack am Gipfel, Gleitschirm, Windschlieren), darunter Stundentabelle und Module. */
 :root {
-  --bg: #edf1f3;
+  --bg: #e9f1f6;
+  --bg-top: #cfe4f3;          /* Himmel oben */
   --surface: #ffffff;
-  --surface-2: #f3f6f8;
-  --ink: #13202a;
-  --muted: #5a6b78;
-  --line: #d6dee4;
-  --accent: #d9531e;          /* Windsack-Orange */
+  --surface-2: #f1f6f9;
+  --ink: #10202e;
+  --muted: #557083;
+  --line: #d3e0e8;
+  --accent: #e8622c;          /* Windsack / Abendlicht */
   --go: #1e9a55;
   --warn: #d89e00;
   --stop: #d23c3c;
@@ -38,16 +39,16 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d1318; --surface: #151e25; --surface-2: #1a252d; --ink: #e5ecf1; --muted: #8c9eab;
-    --line: #25323c; --accent: #ff7a3d; --go: #33b670; --warn: #f0bb2b; --stop: #ec5b58;
+    --bg: #0a1420; --bg-top: #102a43; --surface: #111e2b; --surface-2: #162636; --ink: #e6eef5; --muted: #8aa2b4;
+    --line: #20354a; --accent: #ff8a4c; --go: #33b670; --warn: #f0bb2b; --stop: #ec5b58;
     --calm: #5d6f7c; --nodata: #33414b; --go-ink: #04140b; --warn-ink: #1d1600; --stop-ink: #1a0303;
     --contour: #e5ecf10d; --sim: #9a9dff;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0d1318; --surface: #151e25; --surface-2: #1a252d; --ink: #e5ecf1; --muted: #8c9eab;
-  --line: #25323c; --accent: #ff7a3d; --go: #33b670; --warn: #f0bb2b; --stop: #ec5b58;
+  --bg: #0a1420; --bg-top: #102a43; --surface: #111e2b; --surface-2: #162636; --ink: #e6eef5; --muted: #8aa2b4;
+  --line: #20354a; --accent: #ff8a4c; --go: #33b670; --warn: #f0bb2b; --stop: #ec5b58;
   --calm: #5d6f7c; --nodata: #33414b; --go-ink: #04140b; --warn-ink: #1d1600; --stop-ink: #1a0303;
   --contour: #e5ecf10d; --sim: #9a9dff;
   color-scheme: dark;
@@ -55,7 +56,8 @@
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
-  margin: 0; background: var(--bg); color: var(--ink);
+  margin: 0; color: var(--ink);
+  background: linear-gradient(180deg, var(--bg-top) 0, var(--bg) 420px) var(--bg);
   font: 15px/1.45 var(--font-body);
   padding-left: max(14px, env(safe-area-inset-left, 0px));
   padding-right: max(14px, env(safe-area-inset-right, 0px));
@@ -76,6 +78,7 @@ a { color: var(--accent); }
 header.top { display: flex; align-items: center; gap: 10px; padding-top: 12px; }
 header.top h1 { font-family: var(--font-display); font-weight: 800; font-size: 27px; line-height: 1; margin: 0; letter-spacing: .01em; }
 header.top h1 span { color: var(--accent); }
+header.top .logo { width: 42px; height: 42px; flex: none; }
 header.top .sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
 header.top .spacer { flex: 1; }
 .iconbtn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; flex: none; }
@@ -125,8 +128,19 @@ nav.tabs::-webkit-scrollbar { display: none; }
 .hero { position: relative; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 14px; }
 .hero.sim { border-color: var(--sim); }
 .hero > * { position: relative; }
-.hero .contours { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.hero .contours path { fill: none; stroke: var(--contour); stroke-width: 1.2; }
+.scene-wrap { position: relative; margin: -16px -16px 0; height: 214px; overflow: hidden; border-radius: var(--radius) var(--radius) 0 0; }
+.scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.scene-txt { position: absolute; left: 16px; right: 16px; bottom: 12px; color: #fff; text-shadow: 0 1px 10px rgb(0 0 0 / .5); display: grid; gap: 4px; justify-items: start; }
+.scene-txt .eyebrow { color: #ffffffd0; }
+.scene-txt .eyebrow b { color: #fff; }
+.scene-txt .simtag { color: #d6d8ff; border-color: #d6d8ff; }
+.motto { font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 1; text-wrap: balance; letter-spacing: .005em; }
+.scene-txt .pill { text-shadow: none; box-shadow: 0 1px 4px rgb(0 0 0 / .3); }
+.streak { stroke: #ffffffb8; stroke-width: 1.4; stroke-linecap: round; animation: drift linear infinite; }
+@keyframes drift { from { transform: translateX(-420px); } to { transform: translateX(420px); } }
+.glider { animation: bob 5s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+@keyframes bob { from { transform: translate(-6px, 3px) rotate(-2deg); } to { transform: translate(8px, -5px) rotate(2deg); } }
+@media (prefers-reduced-motion: reduce) { .streak, .glider { animation: none; } }
 .hero-head { display: flex; gap: 12px; align-items: center; }
 .hero-head .txt { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .eyebrow { font-size: 12.5px; color: var(--muted); }
@@ -134,7 +148,7 @@ nav.tabs::-webkit-scrollbar { display: none; }
 .simtag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sim); border: 1px solid var(--sim); border-radius: 999px; padding: 0 7px; margin-left: 6px; vertical-align: 1px; }
 .verdict { font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 1; text-wrap: balance; margin: 2px 0; }
 .verdict.l0 { color: var(--go); } .verdict.l1 { color: var(--warn); } .verdict.l2 { color: var(--stop); } .verdict.lx { color: var(--muted); }
-.verdict-sub { font-size: 14px; text-wrap: balance; }
+.verdict-sub { font-size: 14.5px; text-wrap: balance; }
 .compass { width: 118px; height: 118px; flex: none; }
 .daycards { display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 16px) / 3); gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; }
 .daycards::-webkit-scrollbar { display: none; }
@@ -282,6 +296,13 @@ legend { padding: 0 6px; font-weight: 600; }
 <body>
 <div class="wrap">
   <header class="top">
+    <svg class="logo" viewBox="0 0 48 48" aria-hidden="true">
+      <circle cx="24" cy="24" r="23" style="fill:var(--surface);stroke:var(--line)"/>
+      <path d="M4 36 L15 22 L21 29 L29 17 L44 36 Z" style="fill:var(--muted);opacity:.55"/>
+      <path d="M11 15 Q24 4 37 15 Q24 10 11 15 Z" style="fill:var(--accent)"/>
+      <path d="M12 15 L24 27 M19 12.5 L24 27 M29 12.5 L24 27 M36 15 L24 27" style="stroke:var(--ink);stroke-width:.7;fill:none"/>
+      <circle cx="24" cy="28.5" r="2" style="fill:var(--ink)"/>
+    </svg>
     <div>
       <h1>Flugwetter <span>Walgau</span></h1>
       <div class="sub" id="stamp">Lade Prognose…</div>
@@ -854,9 +875,68 @@ function renderTabs() {
 /* ============================================================
    Hero: Urteil, Kompass, Tageskarten bzw. Rückblick-Kalender
    ============================================================ */
-const CONTOURS = `<svg class="contours" viewBox="0 0 400 220" preserveAspectRatio="none" aria-hidden="true">
-  ${[0, 1, 2, 3, 4, 5, 6].map(i => `<path d="M-10 ${200 - i * 26} C 80 ${170 - i * 30}, 150 ${215 - i * 24}, 230 ${160 - i * 28} S 360 ${120 - i * 22}, 420 ${150 - i * 27}"/>`).join("")}
-</svg>`;
+/* Bergpanorama: Himmel nach Urteil, Windsack zeigt Modellwind, Gleitschirm nur wenn fliegbar */
+const SKY = { 0: ["#2a7fcf", "#8ccff4", "#ffe3a8"], 1: ["#5b82a3", "#b0c5d3", "#eed9b2"], 2: ["#37434f", "#6f7c87", "#a3acb3"], x: ["#44576a", "#8797a4", "#c2cbd2"] };
+const ridgeY = (seed, base, amp, x) => base - amp * (0.55 * Math.sin(x / 53 + seed) + 0.3 * Math.sin(x / 23 + seed * 2.1) + 0.15 * Math.sin(x / 9 + seed * 3.7));
+function ridgePath(seed, base, amp) {
+  let d = "M0 220";
+  for (let x = 0; x <= 400; x += 5) d += ` L${x} ${ridgeY(seed, base, amp, x).toFixed(1)}`;
+  return d + " L400 220 Z";
+}
+const cloudPath = (x, y, k = 1) => `<g transform="translate(${x} ${y}) scale(${k})"><ellipse cx="-12" cy="2" rx="14" ry="8"/><ellipse cx="4" cy="-4" rx="16" ry="11"/><ellipse cx="18" cy="3" rx="12" ry="7"/><rect x="-24" y="2" width="52" height="8" rx="4"/></g>`;
+function sceneSVG(level, h, s) {
+  const sky = SKY[level ?? "x"];
+  const w = h && h.windLaunch != null ? h.windLaunch : 0;
+  const sign = h && h.dir != null && Math.sin((h.dir + 180) * Math.PI / 180) < 0 ? -1 : 1;   // Strömung nach Ost = rechts
+  const seed = [...s.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 10;
+  const sx = 318, sy = ridgeY(seed + 7, 186, 22, sx);
+  const droop = 84 - Math.min(w, 22) / 22 * 78;   // schlaff bis waagrecht
+  let svg = `<svg class="scene" viewBox="0 0 400 214" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset=".62" stop-color="${sky[1]}"/><stop offset="1" stop-color="${sky[2]}"/></linearGradient>
+    <radialGradient id="sun"><stop offset="0" stop-color="#fff6d8"/><stop offset=".45" stop-color="#ffd27a"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient></defs>
+    <rect width="400" height="214" fill="url(#sky)"/>`;
+  if (level === 0 || level === 1) svg += `<circle cx="336" cy="46" r="${level === 0 ? 46 : 34}" fill="url(#sun)" opacity="${level === 0 ? 1 : .6}"/>`;
+  if (level === 2 || (h && h.lowCloud > 60)) svg += `<g fill="#e9eef2" opacity="${level === 2 ? .8 : .6}">${cloudPath(70, 40, 1.1)}${cloudPath(220, 28, .9)}${cloudPath(330, 58, 1.2)}</g>`;
+  if (h && h.rain >= 0.2) svg += `<g stroke="#dfe7ee" stroke-width="1" opacity=".7">${Array.from({ length: 26 }, (_, i) => { const x = (i * 37) % 400, y = 60 + (i * 23) % 90; return `<line x1="${x}" y1="${y}" x2="${x - 4}" y2="${y + 10}"/>`; }).join("")}</g>`;
+  // Windschlieren: Anzahl und Tempo nach Wind
+  if (w >= 3) {
+    const n = 3 + Math.round(Math.min(w, 30) / 5), dur = Math.max(1.4, 9 - w / 4);
+    svg += `<g ${sign < 0 ? 'transform="translate(400 0) scale(-1 1)"' : ""}>` + Array.from({ length: n }, (_, i) => {
+      const y = 22 + (i * 29) % 110, len = 18 + Math.min(w, 35) * 1.2, x0 = (i * 137) % 400;
+      return `<line class="streak" x1="${x0}" y1="${y}" x2="${x0 + len}" y2="${y}" style="animation-duration:${dur.toFixed(1)}s;animation-delay:${(-i * dur / n).toFixed(2)}s"/>`;
+    }).join("") + `</g>`;
+  }
+  svg += `<path d="${ridgePath(seed + 1, 122, 40)}" fill="#8ea8be" opacity=".85"/>
+    <path d="${ridgePath(seed + 4, 152, 34)}" fill="#557189"/>
+    <path d="${ridgePath(seed + 7, 186, 22)}" fill="#1f2e3b"/>`;
+  // Windsack am Gipfel
+  svg += `<g transform="translate(${sx} ${(sy - 30).toFixed(1)})"><line x1="0" y1="0" x2="0" y2="31" stroke="#c9d3db" stroke-width="1.6"/>
+    <g transform="scale(${sign} 1) rotate(${droop.toFixed(0)})"><path d="M0 -3.6 L24 -2 L24 2 L0 3.6 Z" fill="#fff"/>
+    <path d="M0 -3.6 L6 -3.2 L6 3.2 L0 3.6 Z M12 -2.8 L18 -2.4 L18 2.4 L12 2.8 Z" fill="#e8622c"/></g></g>`;
+  // Gleitschirm
+  if (level === 0 || level === 1) {
+    const gx = level === 0 ? 118 : 160, gy = level === 0 ? 52 : 86;
+    svg += `<g class="glider"><g transform="translate(${gx} ${gy}) scale(${sign} 1)">
+      <path d="M-26 5 Q0 -13 26 5 Q0 -4 -26 5 Z" fill="#e8622c" stroke="#a83d14" stroke-width=".6"/>
+      <path d="M-13 -1.5 L-12 1.6 M0 -4 L0 0.6 M13 -1.5 L12 1.6" stroke="#a83d14" stroke-width=".5"/>
+      <g stroke="#1f2e3b" stroke-width=".45"><line x1="-25" y1="5" x2="0" y2="24"/><line x1="-11" y1="1" x2="0" y2="24"/><line x1="11" y1="1" x2="0" y2="24"/><line x1="25" y1="5" x2="0" y2="24"/></g>
+      <circle cx="0" cy="26" r="2.8" fill="#1f2e3b"/></g></g>`;
+  }
+  return svg + `</svg>`;
+}
+function motto(level, day, future) {
+  if (!future.length) return "Tag vorbei.";
+  if (level == null) return "Keine Daten.";
+  if (level === 0) return ["Ab in die Luft!", "Schirm einpacken!", "Der Startplatz ruft.", "Gute Luft da oben."][day.key.charCodeAt(9) % 4];
+  if (level === 1) return "Möglich. Genau hinschauen.";
+  const counts = {};
+  future.forEach(h => h.score.reasons.forEach(r => { if (r.level === 2) counts[r.key] = (counts[r.key] || 0) + 1; }));
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  return ({ foehn: "Föhn! Heute am Boden bleiben.", rain: "Regen. Der Schirm bleibt trocken.", cloud: "Start steckt in den Wolken.",
+    gust: "Zu böig. Groundhandling statt Flug.", spread: "Zu böig. Groundhandling statt Flug.", windLaunch: "Zu viel Wind am Start.",
+    dir: "Wind von der falschen Seite.", cape: "Gewittergefahr. Lieber am Boden.", li: "Gewittergefahr. Lieber am Boden.",
+    closed: "Startplatz gesperrt.", w850: "Starker Wind in der Höhe.", w700: "Starker Höhenwind." })[top && top[0]] || "Bodentag. Zeit für Groundhandling.";
+}
 function arc(c, r, a, b) {
   const p = d => [c + r * Math.sin(d * Math.PI / 180), c - r * Math.cos(d * Math.PI / 180)];
   const span = ((b - a) + 360) % 360 || 360;
@@ -916,17 +996,21 @@ function renderHero() {
     sub += ` · ${greenDays} von ${ev.days.length} Tagen mit grünen Stunden`;
   }
 
-  el.innerHTML = `${CONTOURS}
-    <div class="hero-head">
-      <div class="txt">
+  const lvl = future.length ? dayBest : null;
+  el.innerHTML = `
+    <div class="scene-wrap">${sceneSVG(lvl, ref, s)}
+      <div class="scene-txt">
         <div class="eyebrow"><b>${s.name}</b> · ${s.elev} m · Start ${s.sectorLabel}${isSim() ? `<span class="simtag">Rückblick</span>` : ""}</div>
-        <div class="verdict ${lvClass(future.length ? dayBest : null)}">${dayName(SEL.dayIdx, day.key)} ${title}</div>
-        <div class="verdict-sub">${sub}</div>
+        <div class="motto">${motto(lvl, day, future)}</div>
+        <span class="pill ${lvClass(lvl)}">${dayName(SEL.dayIdx, day.key)} · ${title}</span>
       </div>
+    </div>
+    <div class="hero-head">
+      <div class="txt"><div class="verdict-sub">${sub}</div><div class="hint">Windsack und Pfeil: Modellwind ${ref ? ref.hour + " Uhr" : ""}${ref && ref.windLaunch != null ? ", " + Math.round(ref.windLaunch) + " km/h aus " + compassName(ref.dir ?? 0) : ""}</div></div>
       ${compassSVG(s, ref)}
     </div>
     ${isSim() ? renderCalendar(ev) : renderDayCards(ev, nowKey)}
-    <div class="legend"><span><i style="background:var(--go);opacity:.6"></i>optimaler Sektor</span>${s.sectorWide ? `<span><i style="background:var(--warn);opacity:.5"></i>fliegbarer Sektor</span>` : ""}<span>Pfeil: Modellwind ${ref ? ref.hour + " Uhr" : ""}, Zahl in km/h</span></div>`;
+    <div class="legend"><span><i style="background:var(--go);opacity:.6"></i>optimaler Sektor</span>${s.sectorWide ? `<span><i style="background:var(--warn);opacity:.5"></i>fliegbarer Sektor</span>` : ""}</div>`;
   el.querySelectorAll("[data-day]").forEach(b => b.addEventListener("click", () => {
     SEL = { dayIdx: +b.dataset.day, hour: null }; renderHero(); renderHours(); renderModules();
   }));
