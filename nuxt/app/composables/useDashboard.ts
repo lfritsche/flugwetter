@@ -54,7 +54,9 @@ export function useDashboard(regionId: string) {
   const sync = () => { setCtx({ S, DATA, R, SEL, EVAL: EVAL.value }); return EVAL.value; };
 
   // ---------- Burnair (Login über eigenes Backend)
-  const BA = ref(safe(() => { const a = JSON.parse(localStorage.getItem(BA_KEY) || "null"); return a && a.exp > Date.now() ? a : null; }));
+  const burnairEnabled = !!useRuntimeConfig().public.burnairEnabled;
+  const BA = ref(burnairEnabled ? safe(() => { const a = JSON.parse(localStorage.getItem(BA_KEY) || "null"); return a && a.exp > Date.now() ? a : null; }) : null);
+  if (!burnairEnabled) safe(() => localStorage.removeItem(BA_KEY));
   watch(BA, a => safe(() => a ? localStorage.setItem(BA_KEY, JSON.stringify(a)) : localStorage.removeItem(BA_KEY)));
   async function burnairLogin(username, password) {
     const d = await $fetch("/api/burnair/login", { method: "POST", body: { username, password } }).catch(e => { throw new Error(e?.data?.statusMessage || "Login fehlgeschlagen"); });
@@ -118,7 +120,7 @@ export function useDashboard(regionId: string) {
     }
   });
 
-  const D = { R, PARAMS, S, SEL, DATA, EVAL, sync, loading, simLoading, BA, burnairLogin, burnairLogout, fetchAll, fetchSim, setMode, refresh, setLevel };
+  const D = { R, PARAMS, S, SEL, DATA, EVAL, sync, loading, simLoading, BA, burnairEnabled, burnairLogin, burnairLogout, fetchAll, fetchSim, setMode, refresh, setLevel };
   provide("dash", D);
   return D;
 }

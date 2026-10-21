@@ -3,6 +3,7 @@ import { decodeBurnair } from "#shared/engine";
 import { dateStr } from "#shared/format";
 
 export default defineEventHandler(async (event) => {
+  requireBurnairEnabled();
   await requireBurnair(getHeader(event, "authorization"));
   const R = getRegion(String(getQuery(event).region || ""));
   const days = Math.min(3, Math.max(1, Number(getQuery(event).days) || 3));

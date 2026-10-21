@@ -13,6 +13,11 @@ async function sha256(s: string) {
   return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** Wirft 503, solange die Burnair-Anbindung deaktiviert ist */
+export function requireBurnairEnabled() {
+  if (!useRuntimeConfig().public.burnairEnabled) throw createError({ statusCode: 503, statusMessage: "Burnair-Anbindung ist deaktiviert" });
+}
+
 export async function burnairProfile(auth: string) {
   const r = await fetch(`${API}/v1/users/profile/me`, { headers: { ...UPSTREAM, Authorization: auth } });
   return r.ok ? (await r.json() as Record<string, any>) : null;

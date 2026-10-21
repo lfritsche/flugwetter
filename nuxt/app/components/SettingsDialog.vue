@@ -53,7 +53,7 @@ async function login() {
       </div>
       <div class="hint">Gespeichert nur auf diesem Gerät. Änderst du einen Grenzwert, steht der Regler auf „Eigene Werte“. Bei Wolkenbasis und Lifted Index ist kleiner schlechter (↓).</div>
 
-      <fieldset>
+      <fieldset v-if="D.burnairEnabled">
         <legend>Burnair</legend>
         <template v-if="D.BA.value">
           <div class="hint">Angemeldet als <b>{{ D.BA.value.name }}</b>. Wind auf Starthöhe, Basis und Thermik kommen aus Burnair.</div>

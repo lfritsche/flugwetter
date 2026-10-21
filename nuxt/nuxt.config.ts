@@ -20,6 +20,9 @@ export default defineNuxtConfig({
       ],
     },
   },
+  // Burnair-Anbindung: aus, bis eine schriftliche Erlaubnis von Burnair vorliegt (Daten sind urheberrechtlich geschützt).
+  // Reaktivieren mit NUXT_PUBLIC_BURNAIR_ENABLED=true
+  runtimeConfig: { public: { burnairEnabled: false } },
   // Dashboard ist rein clientseitig interaktiv; Server liefert Daten-API + statische Hülle
   ssr: false,
   nitro: {
