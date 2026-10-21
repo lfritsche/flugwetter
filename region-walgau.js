@@ -16,6 +16,7 @@ window.REGION = {
   foehn: {
     primary:   { label: "Bozen − Innsbruck", a: { lat: 46.50, lon: 11.35 }, b: { lat: 47.26, lon: 11.39 } },
     secondary: { label: "Lugano − Zürich",   a: { lat: 46.00, lon: 8.96 },  b: { lat: 47.46, lon: 8.55 } },
+    combine: "max",   // Föhn = Maximum aus Bozen−Innsbruck und Lugano−Zürich (Rätikon/Graubünden)
     posName: "Südföhn", negName: "Nordströmung",
     explain: "Positiv = Südföhn-Tendenz.",
     warnStation: { id: "11304", name: "Brand", sector: [135, 225], dirLabel: "Südwind", note: "Föhn kommt dort zuerst an." },

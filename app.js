@@ -24,8 +24,10 @@ const PARAMS = [
   { key: "li",         label: "Lifted Index",           unit: "",     weight: 1, invert: true },
   { key: "cloud",      label: "Wolkenbasis über Start", unit: "m",    weight: 2, invert: true },
   { key: "rain",       label: "Niederschlag",           unit: "mm/h", weight: 3 },
-  { key: "blh",        label: "Thermikhöhe (Grenzschicht)", unit: "m", weight: 1 },
+  { key: "blh",        label: "Grenzschicht (grob)", unit: "m", weight: 1 },
 ];
+/* Anfänger/Fortgeschrittene: grün nur, wenn keiner dieser Werte gelb ist */
+const BEGINNER_STRICT = ["cape", "li", "rain", "cloud", "spread", "gust", "windLand", "foehn", "dir", "lee", "w850", "windLaunch", "vis", "front"];
 const PSEUDO = {
   dir:    { label: "Windrichtung am Start", weight: 3, key2: true },
   season: { label: "Saison / Tageszeit",    weight: 1 },
@@ -36,7 +38,7 @@ const PSEUDO = {
 /* Level-Presets: [grün bis, rot über] */
 const LEVELS = [
   { name: "Anfänger", desc: "Frischer Schein, wenige Höhenflüge. Nur ruhige, gleichmäßige Bedingungen sind grün.",
-    v: { windLaunch: [12, 18], gust: [18, 25], spread: [8, 12], windLand: [12, 20], w850: [15, 25], w700: [25, 35], foehn: [2, 4], cape: [300, 800], li: [2, 0], cloud: [500, 200], rain: [0.05, 0.2], blh: [1500, 2500] } },
+    v: { windLaunch: [12, 18], gust: [18, 25], spread: [8, 12], windLand: [12, 20], w850: [15, 25], w700: [20, 30], foehn: [2, 4], cape: [300, 800], li: [2, 0], cloud: [500, 300], rain: [0.05, 0.2], blh: [1500, 2500] } },
   { name: "Fortgeschritten", desc: "Sichere Starts auch bei etwas Wind, erste Thermikflüge.",
     v: { windLaunch: [15, 22], gust: [22, 30], spread: [10, 15], windLand: [15, 24], w850: [20, 30], w700: [30, 40], foehn: [2, 4], cape: [400, 1000], li: [1, -1], cloud: [400, 150], rain: [0.05, 0.3], blh: [2000, 3000] } },
   { name: "Erfahren", desc: "Regelmäßig Thermik und Strecke, kennt die Eigenheiten der Gelände.",
@@ -112,6 +114,7 @@ const HOURLY = [
   "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m",
   "wind_speed_850hPa", "wind_direction_850hPa", "wind_speed_700hPa", "wind_direction_700hPa",
   "cape", "lifted_index", "precipitation", "cloud_base", "cloud_cover_low", "boundary_layer_height",
+  "visibility", "pressure_msl", "weather_code",
 ].join(",");
 const MODELS_LIVE = "icon_d2,meteoswiss_icon_ch2,icon_eu,ecmwf_ifs025,gfs_seamless";
 const MODELS_SIM = "icon_d2,meteoswiss_icon_ch2,gfs_seamless";
@@ -315,6 +318,16 @@ const at = (h, k, m, i) => { const a = h[k + "_" + m]; return a ? a[i] : null; }
 const inSector = (dir, [a, b]) => a <= b ? dir >= a && dir <= b : dir >= a || dir <= b;
 const angDist = (x, y) => { const d = Math.abs(x - y) % 360; return d > 180 ? 360 - d : d; };
 
+function annotateTrends(hours) {
+  const byT = {}; hours.forEach(h => byT[h.t] = h);
+  const shift = (t, dh) => localKey(new Date(new Date(t + ":00").getTime() + dh * 3600e3));
+  hours.forEach(h => {
+    const f3 = byT[shift(h.t, 3)], p3 = byT[shift(h.t, -3)];
+    h.foehnTrend = f3 && f3.foehn != null && h.foehn != null ? f3.foehn - h.foehn : null;
+    h.dp3 = p3 && p3.pmsl != null && h.pmsl != null ? h.pmsl - p3.pmsl : null;   // Druckanstieg in 3 h
+  });
+  return hours;
+}
 function buildHours(site, fc, foehn, hist) {
   const L = fc.launch, G = fc.land;
   const meas = site.measureStation && hist && hist[site.measureStation];
@@ -337,6 +350,9 @@ function buildHours(site, fc, foehn, hist) {
     // Messung schlägt Modell: Modelle treffen den Bodenwind in engen Tälern oft nicht
     let m = meas && t <= nowKey ? meas[t] : null;
     if (!m && site.measureStation && t === nowKey && DATA.live && DATA.live.st[site.measureStation] && DATA.live.st[site.measureStation].ff != null) m = DATA.live.st[site.measureStation];
+    // Talstation (Rolle "landing") ersetzt nur den Landewind, nie den Wind am Start
+    const mLand = m && site.measureRole === "landing" ? m : null;
+    if (mLand) m = null;
     const model = m ? { dir, windLaunch, gust } : null;
     if (m) { dir = m.dir; windLaunch = m.ff; gust = m.ffx; }
     const landFine = mx(at(G, "wind_speed_10m", "icon_d2", i), at(G, "wind_speed_10m", "meteoswiss_icon_ch2", i));
@@ -349,7 +365,11 @@ function buildHours(site, fc, foehn, hist) {
       t, day: t.slice(0, 10), hour: +t.slice(11, 13), sun: fc.sun ? fc.sun[t.slice(0, 10)] : null,
       windLaunch, gust, dir,
       spread: windLaunch != null && gust != null ? Math.max(0, gust - windLaunch) : null,
-      windLand: landFine ?? mx(at(G, "wind_speed_10m", "icon_eu", i), at(G, "wind_speed_10m", "ecmwf_ifs025", i)),
+      windLand: mLand ? mLand.ff : landFine ?? mx(at(G, "wind_speed_10m", "icon_eu", i), at(G, "wind_speed_10m", "ecmwf_ifs025", i)),
+      landMeasured: mLand ? measName : null,
+      vis: mn(at(L, "visibility", "icon_d2", i), at(L, "visibility", "gfs_seamless", i)),
+      wx: mx(at(L, "weather_code", "icon_d2", i), at(L, "weather_code", "meteoswiss_icon_ch2", i)),
+      pmsl: at(L, "pressure_msl", "icon_d2", i) ?? at(L, "pressure_msl", "meteoswiss_icon_ch2", i) ?? at(L, "pressure_msl", "gfs_seamless", i),
       w850: ba && !ba.w850.below ? ba.w850.ws : firstOf("wind_speed_850hPa", upper), d850: ba && !ba.w850.below ? ba.w850.wd : firstOf("wind_direction_850hPa", upper),
       w700: ba ? ba.w700.ws : firstOf("wind_speed_700hPa", upper), d700: ba ? ba.w700.wd : firstOf("wind_direction_700hPa", upper),
       dirLand: at(G, "wind_direction_10m", "icon_d2", i) ?? at(G, "wind_direction_10m", "meteoswiss_icon_ch2", i) ?? at(G, "wind_direction_10m", "icon_eu", i),
@@ -359,7 +379,7 @@ function buildHours(site, fc, foehn, hist) {
       cloudBase, cloud: cloudBase == null ? null : Math.round(cloudBase - site.elev),
       lowCloud: mx(at(L, "cloud_cover_low", "icon_d2", i), at(L, "cloud_cover_low", "meteoswiss_icon_ch2", i)),
       blh: ba && ba.blh != null ? ba.blh : at(L, "boundary_layer_height", "gfs_seamless", i),
-      foehn: f ? (f.bi ?? f.lz) : null,
+      foehn: f ? (FOEHN.combine === "max" ? mx(f.bi, f.lz) : (f.bi ?? f.lz)) : null,
       lowConf: wD2 == null && !m && !ba,
       burnair: ba ? (DATA.burnair[site.id].model || "burnair") : null, baBelow: ba ? ba.belowModel : false,
       measured: m ? measName : null, model,
@@ -373,9 +393,11 @@ function buildHours(site, fc, foehn, hist) {
 function modelCheck(site, hours) {
   if (isSim()) return;
   const calm = S.extra.calmWind;
-  const checked = hours.filter(h => h.measured && h.model && h.model.dir != null).slice(-5);
+  // erst ab 10 Uhr vergleichen: morgens herrscht oft Bergwind, den Modelle nicht abbilden
+  const checked = hours.filter(h => h.measured && h.model && h.model.dir != null && h.hour >= 10).slice(-5);
   const wrong = checked.filter(h => {
     const mod = h.model;
+    if (h.windLaunch > 8 && h.windLaunch > 1.5 * (mod.windLaunch || 0)) return true;   // real deutlich stärker
     if (mod.windLaunch < calm && h.windLaunch < calm) return false;            // beide ruhig
     if (mod.windLaunch >= calm && h.windLaunch < calm) return true;            // Modell Wind, real ruhig
     if (mod.windLaunch < calm && h.windLaunch >= calm) return true;
@@ -424,7 +446,11 @@ function scoreHour(hr, site) {
     let lv = grade(v, lim, p.invert);
     if (p.key === "cloud" && lv != null && hr.lowCloud != null && hr.lowCloud >= 90 && v < lim.r) lv = 2;
     // Hike & Fly: 700 hPa (~3000 m) liegt über der Flughöhe, starke Thermik nur Hinweis → höchstens gelb
-    if (S.flight === "hf" && (p.key === "w700" || p.key === "blh") && lv === 2) lv = 1;
+    if (S.flight === "hf" && ((p.key === "w700" && site.elev < 1800) || p.key === "blh") && lv === 2) lv = 1;
+    // Region kann Föhn für Anfänger früher rot machen (z. B. Nordföhn-Durchbruch ab 3 hPa)
+    if (p.key === "foehn" && v != null && FOEHN.beginnerRed != null && levelIdx() <= 1 && v >= FOEHN.beginnerRed) lv = 2;
+    // Föhn nimmt in den nächsten 3 h um ≥1 hPa zu → eine Stufe schlechter
+    if (p.key === "foehn" && lv != null && lv < 2 && v >= lim.g && hr.foehnTrend >= 1) lv++;
     // Thermik/Strecke: hohe Grenzschicht und Basis sind erwünscht; zu wenig davon = gelb ("kaum Thermik")
     if (S.flight === "xc" && p.key === "blh" && v != null) lv = v >= XC.blhGood ? 0 : 1;
     if (S.flight === "xc" && p.key === "cloud" && lv === 0 && v != null && v < XC.baseGood) lv = 1;
@@ -434,9 +460,10 @@ function scoreHour(hr, site) {
   });
   const pick = dirPick(site, hr.dir, hr.windLaunch), dg = pick.g;
   if (dg != null) {
-    const lvDir = hr.dirSuspect && dg === 2 ? 1 : Math.max(0, dg);
+    // unsichere Modellrichtung macht nichts freundlicher, nur gelb → bleibt gelb, grün → gelb
+    const lvDir = hr.dirSuspect && dg === 0 ? 1 : Math.max(0, dg);
     const lname = pick.launch ? ` → Start ${pick.launch.name}` : "";
-    push("dir", PSEUDO.dir.label + (hr.dirSuspect && dg === 2 ? " (Modell unsicher)" : ""), lvDir, (dg === -1 ? "windstill" : `${compassName(hr.dir)} ${Math.round(hr.dir)}°`) + lname, pick.launch ? pick.launch.sectorLabel : site.sectorLabel, PSEUDO.dir.weight, true);
+    push("dir", PSEUDO.dir.label + (hr.dirSuspect ? " (Modell unsicher)" : ""), lvDir, (dg === -1 ? "windstill" : `${compassName(hr.dir)} ${Math.round(hr.dir)}°`) + lname, pick.launch ? pick.launch.sectorLabel : site.sectorLabel, PSEUDO.dir.weight, true);
   }
   const month = +hr.day.slice(5, 7);
   // Tageslicht: Stunde muss mind. 30 min nach Sonnenaufgang beginnen und 30 min vor Sonnenuntergang enden
@@ -445,6 +472,26 @@ function scoreHour(hr, site) {
     if ((hr.hour + 1) * 60 > hr.sun.set - 30) push("dark", "Tageslicht", 2, `Sonnenuntergang ${fmtT(hr.sun.set)}`, "", 3, true);
     else if (hr.hour * 60 < hr.sun.rise + 30 - 60) push("dark", "Tageslicht", 2, `Sonnenaufgang ${fmtT(hr.sun.rise)}`, "", 3, true);
   }
+  const lvl = levelIdx();
+  // Automatisches Lee: Höhenwind kommt von hinten (Gegenrichtung des gewählten Startsektors)
+  const sec = (pick.launch || site).sector;
+  if (!site.noAutoLee && sec) {
+    const center = (sec[0] + ((sec[1] - sec[0] + 360) % 360) / 2) % 360, back = (center + 180) % 360;
+    const hi = site.elev >= 1800 ? { w: hr.w700, d: hr.d700, n: "3000 m" } : { w: hr.w850, d: hr.d850, n: "1500 m" };
+    if (hi.w != null && hi.d != null && angDist(hi.d, back) <= 60) {
+      const y = 10 + 5 * lvl, r = 20 + 5 * lvl;
+      if (hi.w >= y) push("lee", "Lee: Höhenwind von hinten", hi.w >= r ? 2 : 1, `${compassName(hi.d)} ${Math.round(hi.w)} km/h (${hi.n})`, `≥${y} / ≥${r}`, PSEUDO.lee.weight, true);
+    }
+  }
+  // Nordföhn-Signal in der Höhe (Region): Nordwind auf 3000 m und Druckgradient
+  if (FOEHN.northAloft && hr.w700 >= 25 && hr.d700 != null && inSector(hr.d700, [315, 45]) && hr.foehn >= 1.5)
+    push("foehn2", "Föhn-Signal: Nordwind auf 3000 m", 2, `${compassName(hr.d700)} ${Math.round(hr.w700)} km/h`, "≥25 & ≥1,5 hPa", 3, true);
+  // Gegenlage: starker Stau auf der anderen Seite
+  if (hr.foehn != null && hr.foehn <= -4) push("stau", FOEHN.negName + " (Stau)", 1, fmt(hr.foehn, "hPa"), "≤ −4", 1);
+  // Sicht, Gewitter im Modell, Front (Druckanstieg)
+  if (hr.vis != null && hr.vis < 5000) push("vis", "Sicht", hr.vis < 1500 ? 2 : 1, `${(hr.vis / 1000).toLocaleString("de-AT", { maximumFractionDigits: 1 })} km`, "<5 / <1,5 km", 2, true);
+  if (hr.wx != null && hr.wx >= 95) push("wx", "Gewitter (Modell)", 2, `Code ${hr.wx}`, "", 3, true);
+  if (hr.dp3 != null && hr.dp3 >= 2) push("front", "Front: Druckanstieg", hr.dp3 >= 3 ? 2 : 1, `+${hr.dp3.toFixed(1)} hPa/3 h`, "≥2 / ≥3", 2, true);
   (site.rules || []).forEach(rule => {
     if (rule.type === "closed" && rule.months.includes(month)) push("closed", rule.label, 2, "gesperrt", "", PSEUDO.closed.weight, true);
     // closedDates: [["MM-DD","MM-DD"], …] z. B. Bahn außer Betrieb zwischen den Saisonen
@@ -452,7 +499,10 @@ function scoreHour(hr, site) {
     // lift: Bergfahrt nur in diesen Stunden möglich (Start bis kurz nach letzter Bergfahrt)
     if (rule.type === "lift" && (hr.hour < rule.hours[0] || hr.hour > rule.hours[1])) push("closed", rule.label, 2, `nur ${rule.hours[0]}–${rule.hours[1] + 1} Uhr`, "", PSEUDO.closed.weight, true);
     if (rule.type === "penalty" && rule.months.includes(month) && hr.hour >= rule.hours[0] && hr.hour <= rule.hours[1]) push("season", rule.label, 1, "Abzug", "", PSEUDO.season.weight);
-    if (rule.type === "lee" && hr.d850 != null && hr.w850 >= rule.minSpeed && inSector(hr.d850, rule.sector)) push("lee", rule.label, 1, `${compassName(hr.d850)} ${Math.round(hr.w850)} km/h`, "850 hPa", PSEUDO.lee.weight);
+    if (rule.type === "lee") {
+      const up = site.elev >= 1800, w = up ? hr.w700 : hr.w850, d = up ? hr.d700 : hr.d850;
+      if (d != null && w >= rule.minSpeed && inSector(d, rule.sector)) push("lee", rule.label, w >= rule.minSpeed * 2 ? 2 : 1, `${compassName(d)} ${Math.round(w)} km/h`, up ? "3000 m" : "1500 m", PSEUDO.lee.weight, true);
+    }
   });
   const rated = reasons.filter(r => r.level != null);
   let sumW = 0, sumS = 0;
@@ -461,7 +511,7 @@ function scoreHour(hr, site) {
   let level;
   if (!rated.length || hr.windLaunch == null) level = null;
   else if (rated.some(r => r.level === 2)) level = 2;                    // jedes Rot = Rot
-  else if (ratio < 0.15 && !rated.some(r => r.key2 && r.level === 1)) level = 0;
+  else if (ratio < 0.15 && !rated.some(r => (r.key2 || (lvl <= 1 && BEGINNER_STRICT.includes(r.key))) && r.level === 1)) level = 0;
   else level = 1;
   let bumped = false;
   if (level != null && level < 2 && hr.modelGustDiff > S.extra.modelSpread) { level++; bumped = true; }
@@ -474,9 +524,20 @@ function activeData() { return isSim() ? { fc: DATA.simFc, foehn: DATA.simFoehn,
 
 function evaluateSite(site) {
   const A = activeData();
-  const hours = buildHours(site, A.fc[site.id], A.foehn, A.hist);
+  const hours = annotateTrends(buildHours(site, A.fc[site.id], A.foehn, A.hist));
   modelCheck(site, hours);
   hours.forEach(h => h.score = scoreHour(h, site));
+  // Puffer: eine Stunde vor Gewitter, Regen, Föhn oder Front nicht mehr grün
+  const HAZ = ["cape", "li", "rain", "foehn", "wx", "front"];
+  hours.forEach((h, i) => {
+    const nx = hours[i + 1];
+    if (h.score.level === 0 && nx && HAZ.some(k => nx.score.grades[k] === 2)) {
+      h.score.level = 1;
+      const k = HAZ.find(k => nx.score.grades[k] === 2);
+      h.score.reasons.unshift({ key: "buffer", label: "Puffer: in 1 h " + (nx.score.reasons.find(r => r.key === k) || {}).label, level: 1, value: "", limText: "", weight: 1 });
+      h.score.grades.buffer = 1;
+    }
+  });
   const today = nowLocalKey().slice(0, 10);
   const byDay = {};
   hours.forEach(h => {
@@ -573,13 +634,16 @@ function renderControls() {
           <li><b>Grün</b> nur, wenn Wind, Böen, Föhn und Richtung grün sind und die gelben Werte insgesamt wenig wiegen (gewichteter Score unter 15 %).</li>
           <li><b>Sonst gelb.</b> Sind ICON-D2 und ICON-CH2 bei den Böen mehr als ${S.extra.modelSpread} km/h uneinig, wird die Stunde eine Stufe schlechter.</li>
           <li><b>Flugart ${FLIGHTS[S.flight].short}:</b> ${S.flight === "hf"
-            ? "Höhenwind 700 hPa (ca. 3000 m) und starke Thermik zählen höchstens gelb, weil du in Geländenähe darunter fliegst."
+            ? "Höhenwind 700 hPa (ca. 3000 m) zählt bei Starts unter 1800 m höchstens gelb, weil du in Geländenähe darunter fliegst. Bei höheren Starts voll. Starke Thermik zählt höchstens gelb."
             : `Höhenwind 700 hPa kann rot machen. Thermik erwünscht: Grenzschicht ab ${XC.blhGood} m und Basis ab ${XC.baseGood} m über Start sind grün, darunter gelb („kaum Thermik“).`}</li>
           <li><b>Modell-Check:</b> Lag das Modell in den letzten gemessenen Stunden mehrfach bei der Richtung daneben, zählt die Modell-Richtung für die nächsten 12 Stunden höchstens gelb (Pfeil mit Fragezeichen).</li>
           <li><b>Messung schlägt Modell:</b> Für vergangene Stunden und jetzt nimmt das Dashboard Wind und Richtung von der zugeordneten Messstation (z. B. Pfinnalm für die Spielalm), wo es eine gibt. In der Tabelle mit Punkt markiert.</li>
+          <li><b>Anfänger/Fortgeschrittene:</b> grün nur, wenn kein sicherheitsrelevanter Wert gelb ist (Wind, Böen, Föhn, Gewitter, Regen, Basis, Sicht, Lee, Front).</li>
+          <li><b>Lee:</b> Kommt der Höhenwind (1500 m, bei Starts ab 1800 m 3000 m) von hinten, wird es gelb ab ${10 + 5 * levelIdx()} km/h und rot ab ${20 + 5 * levelIdx()} km/h.</li>
+          <li><b>Puffer:</b> Eine Stunde vor Gewitter, Regen, Föhn oder Front ist es nicht mehr grün. Außerdem zählen Sicht, Gewitter im Modell und Druckanstieg (Front).</li>
           <li><b>Böigkeit</b> zählt erst, wenn die Böen über ${S.limits.gust.g} km/h liegen.</li>
           <li><b>Richtung:</b> optimaler Sektor grün, fliegbarer Sektor gelb, sonst rot. Unter ${S.extra.calmWind} km/h zählt die Richtung nicht.</li>
-          <li><b>Föhn:</b> Druckdifferenz ${FOEHN.primary.label} (${FOEHN.secondary.label} nur als Ersatz). ${FOEHN.explain}</li>
+          <li><b>Föhn:</b> ${FOEHN.combine === "max" ? `das Maximum aus ${FOEHN.primary.label} und ${FOEHN.secondary.label}` : `Druckdifferenz ${FOEHN.primary.label}`}${FOEHN.beginnerRed != null ? `, für Anfänger rot ab ${FOEHN.beginnerRed} hPa` : ""}. Steigt der Föhn in 3 h um 1 hPa, eine Stufe schlechter. ${FOEHN.explain}</li>
           <li>Pro Wert zählt das schlechtere Modell von ICON-D2 und ICON-CH2. Wo ICON-D2 fehlt (ab ca. Tag 3, im 7-Tage-Modus ICON-EU/ECMWF), sind Stunden schraffiert.</li>
           <li><b>Rückblick:</b> echte vergangene Modellläufe (Open-Meteo Historical Forecast), bewertet mit deinen aktuellen Grenzwerten.</li>
         </ul>
@@ -677,7 +741,7 @@ function motto(level, day, future) {
   if (!future.length) return "Tag vorbei.";
   if (level == null) return "Keine Daten.";
   if (level === 0 && future.filter(h => h.score.level === 0).length < 3) return "Nur ein kurzes Fenster.";
-  if (level === 0) return ["Ab in die Luft!", "Schirm einpacken!", "Der Startplatz ruft.", "Gute Luft da oben."][day.key.charCodeAt(9) % 4];
+  if (level === 0) return levelIdx() <= 1 ? "Laut Modell gut. Am Start prüfen." : ["Ab in die Luft!", "Schirm einpacken!", "Der Startplatz ruft.", "Gute Luft da oben."][day.key.charCodeAt(9) % 4];
   if (level === 1) {
     if (S.flight === "xc" && future.some(h => h.score.grades.blh === 1 && h.blh != null && h.blh < XC.blhGood)) return "Fliegbar, aber kaum Thermik.";
     return "Möglich. Genau hinschauen.";
@@ -799,7 +863,7 @@ function buildBriefing(s, ev, day) {
   if (rainH.length) lage.push(`Regen ab ${rainH[0]} Uhr`);
   const storm = at(h => stormRisk(h) >= 2);
   if (storm.length) lage.push(`Gewitterneigung ab ${storm[0]} Uhr`);
-  if (!lage.length) lage.push("ruhige Wetterlage ohne Föhn und ohne Niederschlag");
+  if (!lage.length) lage.push("kein Föhnsignal im Druckgradienten, kein Niederschlag");
   if (nextF != null && nextF >= L.foehn.r && !(fMax >= L.foehn.r)) lage.push(`morgen ${F.posName} (bis ${nextF.toLocaleString("de-AT")} hPa)`);
   // Fenster
   const b = day.best;
@@ -823,7 +887,8 @@ function buildBriefing(s, ev, day) {
   // Thermik
   const blhMax = mx(...H.map(h => h.blh)), blhH = H.find(h => h.blh === blhMax);
   let thermik = null;
-  if (blhMax != null) thermik = blhMax < 500 ? "Kaum Thermik, eher ruhige Abgleiter." : blhMax < 1500 ? `Schwache bis mäßige Thermik, am besten um ${blhH.hour} Uhr (bis ca. ${Math.round(blhMax / 100) * 100} m über Grund).` : `Gute Thermik um ${blhH.hour} Uhr (bis ca. ${Math.round(blhMax / 100) * 100} m über Grund)${S.flight === "hf" && levelIdx() <= 1 ? ", für Anfänger mittags eher ruppig" : ""}.`;
+  const blhSrc = H.some(h => h.burnair) ? "Thermikobergrenze laut Burnair" : "Grenzschicht (grob, GFS)";
+  if (blhMax != null) thermik = blhMax < 500 ? `${blhSrc} niedrig: kaum Durchmischung. Bei Föhn oder Inversion kann es trotzdem turbulent sein.` : `${blhSrc} bis ca. ${Math.round(blhMax / 100) * 100} m über Grund um ${blhH.hour} Uhr${blhMax >= 1500 && S.flight === "hf" && levelIdx() <= 1 ? ", mittags für Anfänger eher ruppig" : ""}.`;
   // Kopfzeile
   const lv = mn(...H.map(h => h.score.level));
   const nGreen = H.filter(h => h.score.level === 0).length, nYellow = H.filter(h => h.score.level === 1).length;
@@ -1233,11 +1298,12 @@ function aloftExplain(H, st) {
   const strong7 = H.filter(h => h.w700 != null && h.w700 > L.w700.g).map(h => h.hour);
   const strong8 = H.filter(h => h.w850 != null && h.w850 > L.w850.g).map(h => h.hour);
   const max7 = mx(...H.map(h => h.w700)), max8 = mx(...H.map(h => h.w850));
-  if (strong8.length) out.push(`Auf Höhe ~1500 m weht es ${hrs(strong8)} mit bis zu ${Math.round(max8)} km/h. Das spürst du direkt am Start und im Flug.`);
+  const s = site(), near8 = Math.abs(s.elev - 1500) < 400, near7 = s.elev >= 1800;
+  if (strong8.length) out.push(`Auf ~1500 m weht es ${hrs(strong8)} mit bis zu ${Math.round(max8)} km/h. ${near8 ? "Das ist ungefähr deine Starthöhe: direkt spürbar." : s.elev > 1900 ? "Das liegt unter deinem Start, betrifft vor allem den Landeanflug." : "Das liegt über dem Start, betrifft den Flug."}`);
   else if (max8 != null) out.push(`Auf ~1500 m bleibt es ruhig (max. ${Math.round(max8)} km/h).`);
   if (strong7.length) {
     const d = H.find(h => h.w700 === max7);
-    out.push(`Auf ~3000 m kräftiger Wind bis ${Math.round(max7)} km/h${d && d.d700 != null ? " aus " + compassName(d.d700) : ""}. ${S.flight === "hf" ? "Beim Hike & Fly bist du darunter, aber Leeseiten und Gipfel können ruppig sein." : "Für Thermik- und Streckenflüge oben deutlich windig."}`);
+    out.push(`Auf ~3000 m kräftiger Wind bis ${Math.round(max7)} km/h${d && d.d700 != null ? " aus " + compassName(d.d700) : ""}. ${near7 ? "Dein Start liegt nahe dieser Höhe: voll relevant, Grate und Leeseiten werden ruppig." : S.flight === "hf" ? "Beim Hike & Fly bist du darunter, aber Leeseiten und Gipfel können ruppig sein." : "Für Thermik- und Streckenflüge oben deutlich windig."}`);
   }
   const risky = H.filter((h, i) => st[i] >= 2).map(h => h.hour);
   const high = H.filter((h, i) => st[i] === 3).map(h => h.hour);

@@ -17,6 +17,8 @@ window.REGION = {
     // Positiv = Nordföhn. Das Föhndiagramm des Landeswetterdienstes zeigt Bozen − Innsbruck, dort ist Nordföhn negativ.
     primary:   { label: "Innsbruck − Bozen", a: { lat: 47.26, lon: 11.39 }, b: { lat: 46.50, lon: 11.35 } },
     secondary: { label: "Bozen − Innsbruck (Südföhn)", a: { lat: 46.50, lon: 11.35 }, b: { lat: 47.26, lon: 11.39 } },
+    beginnerRed: 3,   // Landeswetterdienst: Nordföhn bricht in hauptkammnahen Tälern ab ca. 3 hPa durch
+    northAloft: true, // Nordwind auf 3000 m + Gradient = Föhn-Signal
     posName: "Nordföhn", negName: "Südströmung",
     explain: "Positiv = Nordföhn, der Hauptfeind im Pustertal. Achtung: Das Föhndiagramm des Landeswetterdienstes zeigt Bozen − Innsbruck, dort ist Nordföhn negativ.",
     warnStation: { id: "45100WS", name: "Regelspitze (Gsies, 2747 m)", sector: [315, 45], dirLabel: "Nordwind", note: "Nordföhn zeigt sich am Hauptkamm zuerst." },
@@ -25,7 +27,7 @@ window.REGION = {
     {
       id: "ahornach", name: "Ahornach", area: "Sand in Taufers", lat: 46.9262, lon: 11.9678, elev: 1429,
       sector: [195, 245], sectorWide: [165, 260], sectorLabel: "S–SW",
-      landing: LANDING_SAND, historyStation: "56900MS", measureStation: "56900MS",
+      landing: LANDING_SAND, historyStation: "56900MS", measureStation: "56900MS", measureRole: "landing",
       cams: [fw("amonti", "Mühlen in Taufers")],
       liveLink: { t: "Wetterstation Landeplatz", u: "http://stazioni.soluzionimeteo.it/tures/index.php" },
       notes: [
@@ -79,7 +81,7 @@ window.REGION = {
     {
       id: "pfalzen", name: "Plata", area: "Pfalzen", lat: 46.8289, lon: 11.8765, elev: 1590,
       sector: [160, 200], sectorWide: [135, 225], sectorLabel: "S (SO–SW)",
-      landing: { name: "Landeplatz Sportplatz Pfalzen", lat: 46.8095, lon: 11.8840, elev: 1020, approx: true }, historyStation: "59700MS", measureStation: "65600MS",
+      landing: { name: "Landeplatz Sportplatz Pfalzen", lat: 46.8095, lon: 11.8840, elev: 1020, approx: true }, historyStation: "59700MS",
       cams: [fw("bruneck", "Bruneck")],
       notes: [
         "Schulungsgelände der Flugschule Südtirol: gut für Einsteiger. Holzrampe und Wiesenstart.",
