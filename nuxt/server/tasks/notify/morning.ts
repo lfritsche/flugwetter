@@ -13,7 +13,6 @@ export default defineTask({
       const { data, errors } = await settle({
         fc: fetchForecast(R, OM_LIVE, { past_days: "1", forecast_days: "3" }, MODELS_LIVE),
         foehn: fetchFoehn(R, OM_LIVE, { forecast_days: "3" }),
-        hist: PROVIDERS[R.stationProvider].history(R, 36),
         live: PROVIDERS[R.stationProvider].live(R),
       });
       if (!data.fc) { summary[id] = { error: errors.fc }; continue; }

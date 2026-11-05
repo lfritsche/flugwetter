@@ -20,7 +20,7 @@ export function dayName(idx, key, sim = false) {
   if (sim) { const p = dayParts(key); return `${p.wd} ${p.dm}`; }
   return ["Heute", "Morgen", "Übermorgen"][idx] || dayParts(key).wdl;
 }
-export const LEVEL_TXT = ["fliegbar", "grenzwertig", "nicht fliegbar"];
+export const LEVEL_TXT = ["laut Modell ok", "grenzwertig", "nicht fliegbar"];
 export const lvClass = l => l == null ? "lx" : "l" + l;
 export const keyOf = (day, hour) => `${day}T${String(hour).padStart(2, "0")}:00`;
 export const prevDay = key => { const d = new Date(key + "T12:00:00"); d.setDate(d.getDate() - 1); return dateStr(d); };

@@ -1,7 +1,7 @@
 // Darstellungs-Module als Render-Funktionen (HTML/SVG-Strings), portiert aus app.js.
 // Werden von den Modul-Komponenten per v-html eingebunden. Vorher muss der Engine-Kontext gesetzt sein (D.sync()).
 // @ts-nocheck
-import { S, DATA, R, FOEHN, STATIONS, STATION_NAME, SEL, EVAL, curDay, isSim, activeData, grade, inSector, dirGrade, mx, mn, levelIdx, stormRisk, aloftExplain, profileHour, dayName } from "#shared/engine";
+import { S, DATA, R, FOEHN, STATIONS, STATION_NAME, SEL, EVAL, liveFoehnEvents, liveFogCheck, curDay, isSim, activeData, grade, inSector, dirGrade, mx, mn, levelIdx, stormRisk, aloftExplain, profileHour, dayName } from "#shared/engine";
 import { arrowSVG, gaugeSVG, lineChart } from "#shared/svg";
 import { compassName, fmt, lvClass, nowLocalKey, keyOf, prevDay, dayParts, dateStr } from "#shared/format";
 
@@ -22,11 +22,18 @@ export function renderStations() {
   let flag = "";
   if (br && br.ffx != null) {
     const inDir = br.dir != null && inSector(br.dir, ws.sector);
-    if (br.ffx >= 35 || (inDir && br.ffx >= 25)) flag = `<div class="flag stop"><b>Föhnverdacht:</b> ${ws.name} meldet ${Math.round(br.ffx)} km/h Böen aus ${compassName(br.dir || 0)}. ${ws.note}</div>`;
+    if (inDir && br.ffx >= 25) flag = `<div class="flag stop"><b>Föhnverdacht:</b> ${ws.name} meldet ${Math.round(br.ffx)} km/h Böen aus ${compassName(br.dir || 0)}. ${ws.note}</div>`;
     else if (inDir && br.ffx >= 15) flag = `<div class="flag warn"><b>Beobachten:</b> ${ws.dirLabel} in ${ws.name} mit ${Math.round(br.ffx)} km/h Böen.</div>`;
   }
+  const lives = isSim() ? [] : liveFoehnEvents();
+  flag = lives.map(e => `<div class="flag ${e.lv === 2 ? "stop" : "warn"}"><b>${e.lv === 2 ? "Am Boden bleiben." : "Föhnzeichen."}</b> ${e.text}</div>`).join("") + flag
+    + (L.foehnFailed?.length ? `<div class="flag warn"><b>Föhnmessung nicht verfügbar</b> (${L.foehnFailed.length} Quelle${L.foehnFailed.length > 1 ? "n" : ""}). Eine ruhige Ampel beruht nur auf der Prognose.</div>` : "");
+  const fog = isSim() ? null : liveFogCheck();
+  const pct = v => v == null ? "–" : Math.round(v * 100) + " %";
+  const fogRow = rs => rs.map(r => `${r.name} ${pct(r.sun)} Sonne, ${r.rh == null ? "–" : Math.round(r.rh)} % Feuchte`).join(" · ");
+  const fogBox = fog ? `<div class="flag ${fog.active ? "warn" : ""}"><b>Nebel-Check:</b> ${fog.active ? "Unten kaum Sonne bei hoher Feuchte, oben Sonne: Hochnebel möglich. Webcam am Landeplatz prüfen." : "Kein Hinweis aus den Stationen."}<br><span class="hint">Tal: ${fogRow(fog.low)}<br>Höhe: ${fogRow(fog.high)}</span></div>` : "";
   const t = L.ts ? new Date(L.ts).toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" }) : "";
-  return `<div class="label">Messstationen ${R.stationLabel} · ${t} Uhr</div><div class="stations">${rows}</div>${flag}`;
+  return `<div class="label">Messstationen ${R.stationLabel} · ${t} Uhr</div><div class="stations">${rows}</div>${flag}${fogBox}`;
 }
 
 export function renderHistory(s) {
@@ -97,19 +104,21 @@ export function renderFoehn() {
   const F = windowSeries(A.foehn), day = curDay();
   const key = SEL.hour != null && day ? keyOf(day.key, SEL.hour) : (isSim() && day ? keyOf(day.key, 13) : nowLocalKey());
   const cur = A.foehn.byTime[key] || {}, lim = S.limits.foehn;
+  const hourNow = EVAL[S.tab]?.hours.find(h => h.t === key);
   const maxBI = mx(...F.bi), peak = F.bi.indexOf(maxBI);
   return head + `
     <div class="foehn-top">
       ${gaugeSVG(cur.bi, lim)}
       <div style="display:grid;gap:6px">
-        <div class="metric"><div class="label">${SEL.hour != null || isSim() ? key.slice(11, 13) + " Uhr" : "Jetzt"}</div><div class="val"><span class="st ${lvClass(grade(cur.bi, lim))}" style="margin-right:6px"></span>${fmt(cur.bi, "")}<small> hPa</small></div></div>
+        <div class="metric"><div class="label">${SEL.hour != null || isSim() ? key.slice(11, 13) + " Uhr" : "Jetzt"}</div><div class="val"><span class="st ${lvClass(hourNow ? hourNow.score.grades.foehn : grade(cur.bi, lim))}" style="margin-right:6px"></span>${fmt(cur.bi, "")}<small> hPa</small></div></div>
         <div class="hint">${FOEHN.secondary.label} zum Vergleich: <b class="mono">${fmt(cur.lz, "hPa")}</b></div>
+        <div class="hint">Temperatur Leeseite − Luvseite auf ~2000 m: <b class="mono">${cur.dt == null ? "–" : cur.dt.toLocaleString("de-AT", { maximumFractionDigits: 1 }) + " °C"}</b> (nur zur Info)</div>
       </div>
     </div>
     ${lineChart({ time: F.time, series: [{ vals: F.bi, color: "var(--accent)", width: 2.2 }, { vals: F.lz, color: "var(--muted)", dash: "4 3", width: 1.2 }],
       thresholds: [{ v: lim.g, color: "var(--warn)" }, { v: lim.r, color: "var(--stop)" }], hatchAbove: lim.r })}
     <div class="chart-legend"><span><i style="background:var(--accent)"></i>${FOEHN.primary.label}</span><span><i style="background:var(--muted)"></i>${FOEHN.secondary.label}</span><span><i style="background:repeating-linear-gradient(90deg,var(--stop) 0 2px,transparent 2px 4px)"></i>schraffiert: über ${lim.r} hPa</span></div>
-    <div class="hint">Maximum im Zeitraum: <b class="mono">${fmt(maxBI, "hPa")}</b> (${peak >= 0 ? new Date(F.time[peak]).toLocaleString("de-AT", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "–"}). Föhn kann auch unter diesen Werten durchbrechen: Böen in ${FOEHN.warnStation.name} beobachten.</div>`;
+    <div class="hint">Maximum im Zeitraum: <b class="mono">${fmt(maxBI, "hPa")}</b> (${peak >= 0 ? new Date(F.time[peak]).toLocaleString("de-AT", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "–"}). Auch unter 3 hPa kann Föhn durchbrechen: Darum zählt die Ampel auch Höhenwind von der Föhnseite. Böen in ${FOEHN.warnStation.name} beobachten.</div>`;
 }
 
 export function renderAloft(s) {

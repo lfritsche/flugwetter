@@ -10,6 +10,7 @@ const ROWS = [
   { k: "gust", label: "Böen", f: v => Math.round(v) },
   { k: "windLand", label: "Landung", f: v => Math.round(v) },
   { k: "w850", label: "850 hPa", f: v => Math.round(v) },
+  { k: "landVis", g: "landFog", label: "Sicht unten", f: v => v >= 10000 ? "gut" : (v / 1000).toLocaleString("de-AT", { maximumFractionDigits: 1 }) },
   { k: "cloud", label: "Basis km", f: v => v > 4000 ? "hoch" : (v / 1000).toLocaleString("de-AT", { maximumFractionDigits: 1, minimumFractionDigits: 1 }) },
   { k: "cape", label: "CAPE", f: v => v >= 1000 ? (v / 1000).toFixed(1) + "k" : Math.round(v) },
   { k: "rain", label: "Regen", f: v => v < 0.05 ? "·" : v.toLocaleString("de-AT", { maximumFractionDigits: 1 }) },
@@ -30,7 +31,7 @@ function cellVal(h, r) {
 }
 function cellTone(h, r) {
   if (r.k === "dir") return h.measured ? "meas" : h.dirSuspect ? "suspect" : h.burnair ? "ba" : "";
-  const g = h.score.grades[r.k]; return g == null ? "" : "t" + g;
+  const g = h.score.grades[r.g || r.k]; return g == null ? (r.g && h.landVisD2 ? "t0" : "") : "t" + g;
 }
 function toggle(hr: number) { D.SEL.hour = D.SEL.hour === hr ? null : hr; }
 const notes = computed(() => {
@@ -68,7 +69,7 @@ const notes = computed(() => {
         </div>
       </div>
       <div class="legend">
-        <span>Wind, Böen, 850 hPa in km/h</span><span>Basis = Wolkenbasis über Start, – = wolkenlos</span>
+        <span>Wind, Böen, 850 hPa in km/h</span><span>Sicht unten = am Landeplatz in km</span><span>Basis = Wolkenbasis über Start, – = wolkenlos</span>
         <span v-if="view.s.measureStation">• = gemessen ({{ STATION_NAME[view.s.measureStation] }})</span>
         <span v-if="D.DATA.burnair"><b style="color:var(--sim)">b</b> = Burnair</span>
         <span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 3px,var(--surface) 3px 5px)" />unsicher</span>

@@ -62,7 +62,31 @@ export function decodeBurnair(d, elev) {
   });
   return { model: d.attrs.model, hsurf, hours: out };
 }
-export function annotateTrends(hours) {
+export const isFogCode = c => c === 45 || c === 48;
+function spread2m(H, i) {
+  for (const m of ["icon_d2", "meteoswiss_icon_ch2"]) {
+    const t = at(H, "temperature_2m", m, i), d = at(H, "dew_point_2m", m, i);
+    if (t != null && d != null) return t - d;
+  }
+  return null;
+}
+/* Nebel am Landeplatz, unabhängig vom Level: wer oben in der Sonne startet, muss unten landen können */
+export function landFogGrade(h) {
+  if (h.landFogCode || (h.landVis != null && h.landVis < 1500)) return 2;
+  if ((h.landVis != null && h.landVis < 5000) || (h.landLow >= 80 && h.landSpread != null && h.landSpread <= 3)) return 1;
+  return h.landVis == null && h.landLow == null ? null : 0;
+}
+/* Nebel-Check aus Messungen: unten kaum Sonne, oben volle Sonne. Nur indirekt, daher höchstens gelb. */
+export function liveFogCheck() {
+  const fc = R.fogCheck, st = DATA.live && DATA.live.st;
+  if (!fc || !st) return null;
+  const rows = ids => ids.map(id => ({ id, name: STATION_NAME[id] || id, ...(st[id] || {}) }));
+  const low = rows(fc.low), high = rows(fc.high);
+  const upSun = high.some(s => s.sun != null && s.sun >= 0.8);
+  const hit = low.filter(s => s.sun != null && s.sun <= 0.5 && s.rh != null && s.rh >= 75);
+  return { low, high, active: upSun && hit.length > 0, hit };
+}
+function annotateTrends(hours) {
   const byT = {}; hours.forEach(h => byT[h.t] = h);
   const shift = (t, dh) => localKey(new Date(new Date(t + ":00").getTime() + dh * 3600e3));
   hours.forEach(h => {
@@ -93,7 +117,7 @@ export function buildHours(site, fc, foehn, hist) {
     if (ba && ba.ws != null) { windLaunch = ba.ws; dir = ba.wd; if (ba.gust != null) gust = ba.gust; }
     // Messung schlägt Modell: Modelle treffen den Bodenwind in engen Tälern oft nicht
     let m = meas && t <= nowKey ? meas[t] : null;
-    if (!m && site.measureStation && t === nowKey && DATA.live && DATA.live.st[site.measureStation] && DATA.live.st[site.measureStation].ff != null) m = DATA.live.st[site.measureStation];
+    if (!m && site.measureStation && t === nowKey && DATA.live?.st?.[site.measureStation]?.ff != null) m = DATA.live.st[site.measureStation];
     // Talstation (Rolle "landing") ersetzt nur den Landewind, nie den Wind am Start
     const mLand = m && site.measureRole === "landing" ? m : null;
     if (mLand) m = null;
@@ -111,7 +135,14 @@ export function buildHours(site, fc, foehn, hist) {
       spread: windLaunch != null && gust != null ? Math.max(0, gust - windLaunch) : null,
       windLand: mLand ? mLand.ff : landFine ?? mx(at(G, "wind_speed_10m", "icon_eu", i), at(G, "wind_speed_10m", "ecmwf_ifs025", i)),
       landMeasured: mLand ? measName : null,
-      vis: mn(at(L, "visibility", "icon_d2", i), at(L, "visibility", "gfs_seamless", i)),
+      // Sicht nur aus ICON: GFS steht in den Alpen starr auf 24 km
+      vis: at(L, "visibility", "icon_d2", i) ?? at(L, "visibility", "icon_eu", i),
+      fog: isFogCode(at(L, "weather_code", "icon_d2", i)) || isFogCode(at(L, "weather_code", "meteoswiss_icon_ch2", i)),
+      landVis: at(G, "visibility", "icon_d2", i) ?? at(G, "visibility", "icon_eu", i),
+      landVisD2: at(G, "visibility", "icon_d2", i) != null,
+      landFogCode: isFogCode(at(G, "weather_code", "icon_d2", i)) || isFogCode(at(G, "weather_code", "meteoswiss_icon_ch2", i)),
+      landLow: mx(at(G, "cloud_cover_low", "icon_d2", i), at(G, "cloud_cover_low", "meteoswiss_icon_ch2", i)),
+      landSpread: spread2m(G, i),
       wx: mx(at(L, "weather_code", "icon_d2", i), at(L, "weather_code", "meteoswiss_icon_ch2", i)),
       pmsl: at(L, "pressure_msl", "icon_d2", i) ?? at(L, "pressure_msl", "meteoswiss_icon_ch2", i) ?? at(L, "pressure_msl", "gfs_seamless", i),
       w850: ba && !ba.w850.below ? ba.w850.ws : firstOf("wind_speed_850hPa", upper), d850: ba && !ba.w850.below ? ba.w850.wd : firstOf("wind_direction_850hPa", upper),
@@ -153,6 +184,66 @@ export function modelCheck(site, hours) {
   let n = 0;
   hours.forEach(h => { if (h.t > last.t && !h.measured && n < 12) { h.dirSuspect = info; n++; } });
 }
+/* Föhn: Backtest 1.1.–4.11.2026 gegen Messungen in drei Regionen. Rot auch bei geringem Druck, wenn der Höhenwind von der
+   Föhnseite kommt. ΔT brachte zusätzlich nichts. Stufen 2/3 und Pustertal 2/3 nur grob kalibriert. */
+export const FOEHN_RULE = {
+  sued: [{ p: 4, W: 25, g: 1, tr: 3 }, { p: 4, W: 25, g: 1, tr: 3 }, { p: 4, W: 30, g: 3, tr: 3 }, { p: 5, W: 35, g: 3, tr: 4 }],
+  nord: [{ p: 3, W: 25, g: 1.5, tr: 3 }, { p: 3, W: 25, g: 1.5, tr: 3 }, { p: 4, W: 30, g: 3, tr: 3 }, { p: 5, W: 35, g: 3, tr: 4 }],
+};
+export function foehnGrade(hr, lim) {
+  const dp = hr.foehn;
+  if (dp == null) return null;
+  const r = FOEHN_RULE[FOEHN.mode || "sued"][levelIdx()];
+  const inSek = hr.d700 != null && FOEHN.sector && inSector(hr.d700, FOEHN.sector);
+  const red = dp >= Math.min(lim.r, r.p) || (inSek && hr.w700 >= r.W && dp >= r.g) || (dp >= r.tr && hr.foehnTrend >= 1);
+  if (red) return 2;
+  return dp >= lim.g || (inSek && hr.w700 >= r.W - 5) ? 1 : 0;
+}
+/* Live-Signale aus DATA.live.foehnSamples ({"src:id":[{t,g,dir,rh,ta}]}, letzte 12 h). Lücke oder Ausfall = keine Änderung.
+   active: bis 3 h nach der letzten Messung. Danach bleibt für Anfänger der Tag gelb, Ende des Föhns ist nicht gesichert. */
+const HOLD_MS = 3 * 3600e3;
+export function liveFoehnEvents(nowMs = Date.now()) {
+  const samples = DATA.live && DATA.live.foehnSamples;
+  if (!samples || !FOEHN.live) return [];
+  const since = nowMs - 12 * 3600e3, lvl = levelIdx(), out = [];
+  const hhmm = t => new Date(t).toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Vienna" });
+  const finish = (lv, last, value, text) => {
+    const active = nowMs - last <= HOLD_MS;
+    out.push({ lv: active ? lv : 1, base: lv, active, last, value: active ? value : `früher heute, ${hhmm(last)} Uhr`, text: active ? text : `Früher heute Föhn gemessen (${value}, ${hhmm(last)} Uhr). Ende nicht gesichert: Messstationen prüfen, nur mit Fluglehrer entscheiden.` });
+  };
+  for (const d of FOEHN.live) {
+    const rows = id => (samples[`${d.src}:${id}`] || []).filter(r => { const t = +new Date(r.t); return t >= since && t <= nowMs + 900e3; });
+    if (d.type === "gust") {
+      const hits = rows(d.station).filter(r => r.g >= d.gust[lvl] && r.dir != null && inSector(r.dir, d.sector) && (d.rhMax == null || r.rh == null || r.rh < d.rhMax));
+      if (!hits.length) continue;
+      const peak = hits.reduce((a, b) => (b.g > a.g ? b : a)), last = Math.max(...hits.map(r => +new Date(r.t)));
+      finish(2, last, `${d.name}: ${Math.round(peak.g)} km/h aus ${compassName(peak.dir)}`, `Föhn gemessen: ${d.name} bis ${Math.round(peak.g)} km/h aus ${compassName(peak.dir)}. Das gilt bis 3 Stunden nach der letzten Messung, auch wenn die Prognose ruhiger ist.`);
+    } else if (d.type === "split") {
+      const B = Object.fromEntries(rows(d.b).map(r => [r.t, r]));
+      const hits = rows(d.a).filter(r => { const o = B[r.t]; return o && r.dir != null && inSector(r.dir, d.sector) && r.rh != null && r.rh < d.rhMax && r.ta != null && o.ta != null && r.ta - o.ta >= d.dT; });
+      if (!hits.length) continue;
+      finish(lvl <= 1 ? 2 : 1, Math.max(...hits.map(r => +new Date(r.t))), `${d.nameA} warm, ${d.nameB} kalt`, `${d.nameA} warm und trocken, ${d.nameB} kalt: Föhn liegt über dem Kaltluftsee, Durchbruch jederzeit möglich.`);
+    }
+  }
+  return out.sort((a, b) => b.lv - a.lv || b.last - a.last);
+}
+function applyLiveFoehn(hours) {
+  if (isSim()) return;
+  const evs = liveFoehnEvents();
+  if (!evs.length) return;
+  const nowKey = nowLocalKey(), today = nowKey.slice(0, 10), lvl = levelIdx();
+  hours.forEach(h => {
+    if (h.t < nowKey) return;
+    // stärkstes zutreffendes Ereignis: innerhalb der Haltezeit voll, danach für Anfänger bis Tagesende gelb
+    let best = null;
+    for (const e of evs) {
+      const held = h.t <= localKey(new Date(e.last + HOLD_MS));
+      const cand = held ? { lv: e.base, value: e.value } : (lvl <= 1 && h.day === today ? { lv: 1, value: "Früher heute Föhn gemessen" } : null);
+      if (cand && (!best || cand.lv > best.lv)) best = cand;
+    }
+    if (best) h.foehnLive = best;
+  });
+}
 export function grade(v, lim, invert) {
   if (v == null) return null;
   if (invert) return v >= lim.g ? 0 : v >= lim.r ? 1 : 2;
@@ -191,13 +282,7 @@ export function scoreHour(hr, site) {
     if (p.key === "cloud" && lv != null && hr.lowCloud != null && hr.lowCloud >= 90 && v < lim.r) lv = 2;
     // Hike & Fly: 700 hPa (~3000 m) liegt über der Flughöhe, starke Thermik nur Hinweis → höchstens gelb
     if (S.flight === "hf" && ((p.key === "w700" && site.elev < 1800) || p.key === "blh") && lv === 2) lv = 1;
-    // Region kann Föhn für Anfänger früher rot machen (z. B. Nordföhn-Durchbruch ab 3 hPa)
-    if (p.key === "foehn" && v != null && FOEHN.beginnerRed != null && levelIdx() <= 1 && v >= FOEHN.beginnerRed) lv = 2;
-    // Föhn nimmt in den nächsten 3 h um ≥1 hPa zu → eine Stufe schlechter
-    if (p.key === "foehn" && lv != null && lv < 2 && v >= lim.g && hr.foehnTrend >= 1) lv++;
-    // Thermik/Strecke: hohe Grenzschicht und Basis sind erwünscht; zu wenig davon = gelb ("kaum Thermik")
-    if (S.flight === "xc" && p.key === "blh" && v != null) lv = v >= XC.blhGood ? 0 : 1;
-    if (S.flight === "xc" && p.key === "cloud" && lv === 0 && v != null && v < XC.baseGood) lv = 1;
+    if (p.key === "foehn") lv = foehnGrade(hr, lim) ?? 1;   // ohne Föhndaten nie grün
     // Böigkeit zählt erst, wenn die Böen selbst über grün liegen (sonst Artefakt bei Windstille)
     if (p.key === "spread" && lv != null && hr.gust != null && hr.gust <= S.limits.gust.g) lv = 0;
     push(p.key, p.label, lv, v == null ? null : fmt(v, p.unit), p.invert ? `≥${lim.g} / <${lim.r}` : `≤${lim.g} / >${lim.r}`, p.weight, p.key2);
@@ -217,6 +302,8 @@ export function scoreHour(hr, site) {
     else if (hr.hour * 60 < hr.sun.rise + 30 - 60) push("dark", "Tageslicht", 2, `Sonnenaufgang ${fmtT(hr.sun.rise)}`, "", 3, true);
   }
   const lvl = levelIdx();
+  // Startplätze, die Anfänger nicht ohne Klärung nutzen sollen: nie grün
+  if (site.guidedOnly && lvl <= 1) push("guided", site.guidedOnly, 1, "Hinweis", "", 3, true);
   // Automatisches Lee: Höhenwind kommt von hinten (Gegenrichtung des gewählten Startsektors)
   const sec = (pick.launch || site).sector;
   if (!site.noAutoLee && sec) {
@@ -227,13 +314,17 @@ export function scoreHour(hr, site) {
       if (hi.w >= y) push("lee", "Lee: Höhenwind von hinten", hi.w >= r ? 2 : 1, `${compassName(hi.d)} ${Math.round(hi.w)} km/h (${hi.n})`, `≥${y} / ≥${r}`, PSEUDO.lee.weight, true);
     }
   }
-  // Nordföhn-Signal in der Höhe (Region): Nordwind auf 3000 m und Druckgradient
-  if (FOEHN.northAloft && hr.w700 >= 25 && hr.d700 != null && inSector(hr.d700, [315, 45]) && hr.foehn >= 1.5)
-    push("foehn2", "Föhn-Signal: Nordwind auf 3000 m", 2, `${compassName(hr.d700)} ${Math.round(hr.w700)} km/h`, "≥25 & ≥1,5 hPa", 3, true);
+  // Föhn gemessen: verschärft nur, gilt laufende Stunde plus 3 h
+  if (hr.foehnLive) push("foehnLive", "Föhn gemessen", hr.foehnLive.lv, hr.foehnLive.value, "Messung", 3, true);
   // Gegenlage: starker Stau auf der anderen Seite
   if (hr.foehn != null && hr.foehn <= -4) push("stau", FOEHN.negName + " (Stau)", 1, fmt(hr.foehn, "hPa"), "≤ −4", 1);
   // Sicht, Gewitter im Modell, Front (Druckanstieg)
-  if (hr.vis != null && hr.vis < 5000) push("vis", "Sicht", hr.vis < 1500 ? 2 : 1, `${(hr.vis / 1000).toLocaleString("de-AT", { maximumFractionDigits: 1 })} km`, "<5 / <1,5 km", 2, true);
+  if (hr.fog || (hr.vis != null && hr.vis < 5000)) push("vis", "Sicht am Start", hr.fog || hr.vis < 1500 ? 2 : 1, hr.vis == null ? "Nebel" : `${(hr.vis / 1000).toLocaleString("de-AT", { maximumFractionDigits: 1 })} km`, "<5 / <1,5 km", 2, true);
+  const lf = landFogGrade(hr);
+  if (lf) push("landFog", "Nebel am Landeplatz", lf, hr.landFogCode ? "Nebel" : hr.landVis != null && hr.landVis < 5000 ? `Sicht ${hr.landVis < 1000 ? Math.round(hr.landVis) + " m" : (hr.landVis / 1000).toLocaleString("de-AT", { maximumFractionDigits: 1 }) + " km"}` : "tiefe Wolken", "<5 / <1,5 km", 3, true);
+  // ICON-EU ist für Nebel praktisch blind: ohne ICON-D2 für Anfänger keine Entwarnung
+  if (!lf && !hr.landVisD2 && lvl <= 1) push("landFog", "Sicht unten unsicher (kein Feinmodell)", 1, "unbekannt", "", 2, true);
+  if (hr.fogLive && !(lf >= 1)) push("landFog", "Nebel-Check Messung", 1, hr.fogLive, "unten dunkel, oben Sonne", 2, true);
   if (hr.wx != null && hr.wx >= 95) push("wx", "Gewitter (Modell)", 2, `Code ${hr.wx}`, "", 3, true);
   if (hr.dp3 != null && hr.dp3 >= 2) push("front", "Front: Druckanstieg", hr.dp3 >= 3 ? 2 : 1, `+${hr.dp3.toFixed(1)} hPa/3 h`, "≥2 / ≥3", 2, true);
   (site.rules || []).forEach(rule => {
@@ -242,7 +333,9 @@ export function scoreHour(hr, site) {
     if (rule.type === "closedDates" && rule.ranges.some(([a, b]) => hr.day.slice(5) >= a && hr.day.slice(5) <= b)) push("closed", rule.label, 2, "zu", "", PSEUDO.closed.weight, true);
     // lift: Bergfahrt nur in diesen Stunden möglich (Start bis kurz nach letzter Bergfahrt)
     if (rule.type === "lift" && (hr.hour < rule.hours[0] || hr.hour > rule.hours[1])) push("closed", rule.label, 2, `nur ${rule.hours[0]}–${rule.hours[1] + 1} Uhr`, "", PSEUDO.closed.weight, true);
-    if (rule.type === "penalty" && rule.months.includes(month) && hr.hour >= rule.hours[0] && hr.hour <= rule.hours[1]) push("season", rule.label, 1, "Abzug", "", PSEUDO.season.weight);
+    // warnDates: Hinweis in diesem Zeitraum, höchstens gelb (z. B. Wildruhezone, Saison)
+    if (rule.type === "warnDates" && rule.ranges.some(([a, b]) => hr.day.slice(5) >= a && hr.day.slice(5) <= b)) push("season", rule.label, 1, "Hinweis", "", PSEUDO.season.weight, true);
+    if (rule.type === "penalty" && rule.months.includes(month) && hr.hour >= rule.hours[0] && hr.hour <= rule.hours[1]) push("season", rule.label, 1, "Abzug", "", PSEUDO.season.weight, lvl <= 1);
     if (rule.type === "lee") {
       const up = site.elev >= 1800, w = up ? hr.w700 : hr.w850, d = up ? hr.d700 : hr.d850;
       if (d != null && w >= rule.minSpeed && inSector(d, rule.sector)) push("lee", rule.label, w >= rule.minSpeed * 2 ? 2 : 1, `${compassName(d)} ${Math.round(w)} km/h`, up ? "3000 m" : "1500 m", PSEUDO.lee.weight, true);
@@ -270,9 +363,14 @@ export function evaluateSite(site) {
   const A = activeData();
   const hours = annotateTrends(buildHours(site, A.fc[site.id], A.foehn, A.hist));
   modelCheck(site, hours);
+  applyLiveFoehn(hours);
+  if (!isSim()) {
+    const fog = liveFogCheck();
+    if (fog && fog.active) { const nk = nowLocalKey(); hours.forEach(h => { if (h.t === nk) h.fogLive = `${fog.hit[0].name}: kaum Sonne`; }); }
+  }
   hours.forEach(h => h.score = scoreHour(h, site));
   // Puffer: eine Stunde vor Gewitter, Regen, Föhn oder Front nicht mehr grün
-  const HAZ = ["cape", "li", "rain", "foehn", "wx", "front"];
+  const HAZ = ["cape", "li", "rain", "foehn", "wx", "front", "landFog"];
   hours.forEach((h, i) => {
     const nx = hours[i + 1];
     if (h.score.level === 0 && nx && HAZ.some(k => nx.score.grades[k] === 2)) {
@@ -316,16 +414,18 @@ export function motto(level, day, future) {
   if (level === 0) return levelIdx() <= 1 ? "Laut Modell gut. Am Start prüfen." : ["Ab in die Luft!", "Schirm einpacken!", "Der Startplatz ruft.", "Gute Luft da oben."][day.key.charCodeAt(9) % 4];
   if (level === 1) {
     if (S.flight === "xc" && future.some(h => h.score.grades.blh === 1 && h.blh != null && h.blh < XC.blhGood)) return "Fliegbar, aber kaum Thermik.";
+    const guided = future.flatMap(h => h.score.reasons).find(r => r.key === "guided");
+    if (guided) return guided.label + ".";
     return "Möglich. Genau hinschauen.";
   }
   const counts = {};
   future.forEach(h => h.score.reasons.forEach(r => { if (r.level === 2) counts[r.key] = (counts[r.key] || 0) + 1; }));
-  const PRIO = ["closed", "foehn", "foehn2", "cape", "li", "wx", "rain", "gust", "windLaunch", "spread", "cloud", "windLand", "dir", "w850", "w700", "lee", "front", "vis", "blh", "dark"];   // Dunkelheit betrifft nur Randstunden: zuletzt
+  const PRIO = ["foehnLive", "foehn", "cape", "li", "wx", "rain", "landFog", "gust", "windLaunch", "spread", "cloud", "windLand", "dir", "w850", "w700", "lee", "front", "vis", "blh", "closed", "dark"];   // Dunkelheit betrifft nur Randstunden: zuletzt
   const top = Object.entries(counts).sort((a, b) => (PRIO.indexOf(a[0]) + 99) % 99 - (PRIO.indexOf(b[0]) + 99) % 99 || b[1] - a[1])[0];
   return ({ foehn: "Föhn! Heute am Boden bleiben.", rain: "Regen. Der Schirm bleibt trocken.", cloud: "Start steckt in den Wolken.",
     gust: "Zu böig. Groundhandling statt Flug.", spread: "Zu böig. Groundhandling statt Flug.", windLaunch: "Zu viel Wind am Start.",
     dir: "Wind von der falschen Seite.", cape: "Gewittergefahr. Lieber am Boden.", li: "Gewittergefahr. Lieber am Boden.",
-    closed: "Bahn oder Startplatz zu.", dark: "Zu wenig Tageslicht.", foehn2: "Föhn! Heute am Boden bleiben.", front: "Front zieht durch.", vis: "Schlechte Sicht.", wx: "Gewittergefahr. Lieber am Boden.", w850: "Starker Wind in der Höhe.", w700: "Starker Höhenwind." })[top && top[0]] || "Bodentag. Zeit für Groundhandling.";
+    closed: "Bahn oder Startplatz zu.", dark: "Zu wenig Tageslicht.", foehnLive: "Föhn gemessen! Am Boden bleiben.", landFog: future.some(h => h.score.grades.landFog === 2 && !h.score.grades.vis && h.score.reasons.every(r => r.level !== 2 || r.key === "landFog")) ? "Start frei, Landeplatz im Nebel." : "Nebel am Landeplatz.", front: "Front zieht durch.", vis: "Schlechte Sicht.", wx: "Gewittergefahr. Lieber am Boden.", w850: "Starker Wind in der Höhe.", w700: "Starker Höhenwind." })[top && top[0]] || "Bodentag. Zeit für Groundhandling.";
 }
 export function buildBriefing(s, ev, day) {
   const nowKey = isSim() ? "" : nowLocalKey();
@@ -337,10 +437,12 @@ export function buildBriefing(s, ev, day) {
   const fPeak = H.find(h => h.foehn === fMax);
   const next = ev.days[ev.days.indexOf(day) + 1];
   const nextF = next ? mx(...next.hours.map(h => h.foehn)) : null;
+  const fl = isSim() ? null : liveFoehnEvents()[0];
   // Lage
   let lage = [];
+  if (fl) lage.push(fl.active ? "Föhn gemessen" : "früher heute Föhn gemessen");
   if (fMax != null && fMax >= L.foehn.r) lage.push(`${F.posName} mit bis zu ${fMax.toLocaleString("de-AT")} hPa (${F.primary.label}) ab etwa ${fPeak.hour} Uhr`);
-  else if (fMax != null && fMax >= L.foehn.g) lage.push(`leichter ${F.posName}-Druck (${fMax.toLocaleString("de-AT")} hPa)`);
+  else if (fMax != null && fMax >= L.foehn.g) lage.push(`${F.posName}-Signal im Druck (${fMax.toLocaleString("de-AT")} hPa)`);
   else if (fMin != null && fMin <= -L.foehn.r) lage.push(`${F.negName}`);
   const w7 = mx(...H.map(h => h.w700)), w7h = H.find(h => h.w700 === w7);
   if (w7 != null && w7 > L.w700.g) lage.push(`kräftiger Höhenwind${w7h && w7h.d700 != null ? " aus " + compassName(w7h.d700) : ""} (bis ${Math.round(w7)} km/h auf ~3000 m)`);
@@ -348,7 +450,7 @@ export function buildBriefing(s, ev, day) {
   if (rainH.length) lage.push(`Regen ab ${rainH[0]} Uhr`);
   const storm = at(h => stormRisk(h) >= 2);
   if (storm.length) lage.push(`Gewitterneigung ab ${storm[0]} Uhr`);
-  if (!lage.length) lage.push("kein Föhnsignal im Druckgradienten, kein Niederschlag");
+  if (!lage.length) if (!fl) lage.push("keine Föhn- oder Regenwarnung im Modell, vor Ort prüfen");
   if (nextF != null && nextF >= L.foehn.r && !(fMax >= L.foehn.r)) lage.push(`morgen ${F.posName} (bis ${nextF.toLocaleString("de-AT")} hPa)`);
   // Fenster
   const b = day.best;
@@ -360,12 +462,15 @@ export function buildBriefing(s, ev, day) {
   }
   // Achtung: wichtigste Einschränkungen mit Uhrzeit
   const achtung = [];
+  if (fl) achtung.push(fl.text);
   const gustH = at(h => h.gust != null && h.gust > L.gust.g);
   if (gustH.length) achtung.push(`Böen über ${L.gust.g} km/h ${hrs(gustH)} (bis ${Math.round(mx(...H.map(h => h.gust)))} km/h)`);
   const dirBad = at(h => h.score.grades.dir === 2);
   if (dirBad.length) achtung.push(`Wind von der falschen Seite ${hrs(dirBad)}`);
   const lowCloud = at(h => h.cloud != null && h.cloud < L.cloud.r);
   if (lowCloud.length) achtung.push(`Start in den Wolken ${hrs(lowCloud)}`);
+  const landFog = at(h => h.score.grades.landFog === 2);
+  if (landFog.length) achtung.unshift(`Nebel am Landeplatz ${hrs(landFog)}: Vor dem Start Sicht unten prüfen`);
   const lee = H.find(h => h.score.grades.lee >= 1);
   if (lee) achtung.push(lee.score.reasons.find(r => r.key === "lee").label);
   if (H.some(h => h.dirSuspect)) achtung.push("Modell lag heute bei der Windrichtung daneben: vor Ort Windsack prüfen");

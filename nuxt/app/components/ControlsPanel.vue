@@ -50,12 +50,13 @@ const lvlIdx = computed(() => idx.value);
             <template v-else>Höhenwind 700 hPa kann rot machen. Thermik erwünscht: Grenzschicht ab {{ XC.blhGood }} m und Basis ab {{ XC.baseGood }} m über Start sind grün, darunter gelb („kaum Thermik“).</template>
           </li>
           <li><b>Lee:</b> Kommt der Höhenwind (1500 m, bei Starts ab 1800 m 3000 m) von hinten, wird es gelb ab {{ 10 + 5 * lvlIdx }} km/h und rot ab {{ 20 + 5 * lvlIdx }} km/h.</li>
+          <li><b>Nebel am Landeplatz:</b> rot bei Sicht unter 1,5 km oder Nebelmeldung, gelb unter 5 km oder bei tiefen Wolken nahe am Taupunkt. Gilt für alle Level. Das Modell kann Nebel falsch verorten: Webcam und Nebel-Check prüfen.</li>
           <li><b>Puffer:</b> Eine Stunde vor Gewitter, Regen, Föhn oder Front ist es nicht mehr grün. Außerdem zählen Sicht, Gewitter im Modell und Druckanstieg (Front).</li>
           <li><b>Messung schlägt Modell:</b> Für vergangene Stunden und jetzt zählen Wind und Richtung der zugeordneten Messstation am Start (z. B. Pfinnalm für die Spielalm). Talstationen ersetzen nur den Landewind.</li>
           <li><b>Modell-Check:</b> Lag das Modell ab 10 Uhr mehrfach daneben, steht ein Fragezeichen am Pfeil. Eine optimistische Richtung zählt dann nur noch gelb, nichts wird dadurch freundlicher.</li>
           <li><b>Böigkeit</b> zählt erst, wenn die Böen über {{ S.limits.gust.g }} km/h liegen.</li>
           <li><b>Richtung:</b> optimaler Sektor grün, fliegbarer Sektor gelb, sonst rot. Unter {{ S.extra.calmWind }} km/h zählt die Richtung nicht. Bei mehreren Startplätzen gilt der passendste.</li>
-          <li><b>Föhn:</b> {{ F.combine === "max" ? `das Maximum aus ${F.primary.label} und ${F.secondary.label}` : `Druckdifferenz ${F.primary.label}` }}{{ F.beginnerRed != null ? `, für Anfänger rot ab ${F.beginnerRed} hPa` : "" }}. Steigt der Föhn in 3 h um 1 hPa, eine Stufe schlechter. {{ F.explain }}</li>
+          <li><b>Föhn:</b> {{ F.combine === "max" ? `das Maximum aus ${F.primary.label} und ${F.secondary.label}` : `Druckdifferenz ${F.primary.label}` }}. Rot auch schon bei wenig Druck (ab 1 hPa, beim Anfänger), wenn der Höhenwind auf 3000 m von der Föhnseite ab 25 km/h kommt, oder bei steigendem Druck ab 3 hPa. Gemessener Föhn macht rot bis 3 Stunden nach der letzten Messung, danach für Anfänger gelb bis Tagesende. {{ F.explain }} Grün heißt nur: kein Föhnsignal im Modell.</li>
           <li>Pro Wert zählt das schlechtere Modell von ICON-D2 und ICON-CH2. Wo ICON-D2 fehlt (ab ca. Tag 3, im 7-Tage-Modus ICON-EU/ECMWF), sind Stunden schraffiert.</li>
           <li><b>Rückblick:</b> echte vergangene Modellläufe (Open-Meteo Historical Forecast), bewertet mit deinen aktuellen Grenzwerten.</li>
         </ul>

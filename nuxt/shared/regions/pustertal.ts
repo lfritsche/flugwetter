@@ -19,12 +19,16 @@ const REGION = {
     // Positiv = Nordföhn. Das Föhndiagramm des Landeswetterdienstes zeigt Bozen − Innsbruck, dort ist Nordföhn negativ.
     primary:   { label: "Innsbruck − Bozen", a: { lat: 47.26, lon: 11.39 }, b: { lat: 46.50, lon: 11.35 } },
     secondary: { label: "Bozen − Innsbruck (Südföhn)", a: { lat: 46.50, lon: 11.35 }, b: { lat: 47.26, lon: 11.39 } },
-    beginnerRed: 3,   // Landeswetterdienst: Nordföhn bricht in hauptkammnahen Tälern ab ca. 3 hPa durch
-    northAloft: true, // Nordwind auf 3000 m + Gradient = Föhn-Signal
+    mode: "nord", sector: [300, 60],   // Rot ab 3 hPa: Landeswetterdienst nennt Durchbruch in hauptkammnahen Tälern ab ca. 3 hPa
+    live: [
+      { type: "gust", src: "suedtirol", station: "37100MS", name: "Sterzing", sector: [300, 60], gust: [40, 40, 50, 60], rhMax: 60 },
+      { type: "gust", src: "suedtirol", station: "45100WS", name: "Regelspitze (2747 m)", sector: [270, 60], gust: [60, 60, 70, 80] },
+    ],
     posName: "Nordföhn", negName: "Südströmung",
     explain: "Positiv = Nordföhn, der Hauptfeind im Pustertal. Achtung: Das Föhndiagramm des Landeswetterdienstes zeigt Bozen − Innsbruck, dort ist Nordföhn negativ.",
     warnStation: { id: "45100WS", name: "Regelspitze (Gsies, 2747 m)", sector: [315, 45], dirLabel: "Nordwind", note: "Nordföhn zeigt sich am Hauptkamm zuerst." },
   },
+  fogCheck: { low: ["59700MS", "43200MS"], high: ["65600MS"] },
   SITES: [
     {
       id: "ahornach", name: "Ahornach", area: "Sand in Taufers", lat: 46.9262, lon: 11.9678, elev: 1429,

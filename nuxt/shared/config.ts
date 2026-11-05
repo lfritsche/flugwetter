@@ -17,7 +17,7 @@ export const makeParams = (FOEHN) => [
   { key: "blh",        label: "Grenzschicht (grob)", unit: "m", weight: 1 },
 ];
 /* Anfänger/Fortgeschrittene: grün nur, wenn keiner dieser Werte gelb ist */
-export const BEGINNER_STRICT = ["cape", "li", "rain", "cloud", "spread", "gust", "windLand", "foehn", "dir", "lee", "w850", "windLaunch", "vis", "front"];
+export const BEGINNER_STRICT = ["cape", "li", "rain", "cloud", "spread", "gust", "windLand", "foehn", "dir", "lee", "w850", "windLaunch", "vis", "front", "landFog"];
 export const PSEUDO = {
   dir:    { label: "Windrichtung am Start", weight: 3, key2: true },
   season: { label: "Saison / Tageszeit",    weight: 1 },
@@ -32,9 +32,9 @@ export const LEVELS = [
   { name: "Fortgeschritten", desc: "Sichere Starts auch bei etwas Wind, erste Thermikflüge.",
     v: { windLaunch: [15, 22], gust: [22, 30], spread: [10, 15], windLand: [15, 24], w850: [20, 30], w700: [30, 40], foehn: [2, 4], cape: [400, 1000], li: [1, -1], cloud: [400, 150], rain: [0.05, 0.3], blh: [2000, 3000] } },
   { name: "Erfahren", desc: "Regelmäßig Thermik und Strecke, kennt die Eigenheiten der Gelände.",
-    v: { windLaunch: [18, 25], gust: [25, 32], spread: [12, 18], windLand: [18, 28], w850: [25, 35], w700: [35, 45], foehn: [3, 5], cape: [600, 1200], li: [0, -2], cloud: [300, 100], rain: [0.1, 0.5], blh: [2800, 3800] } },
+    v: { windLaunch: [18, 25], gust: [25, 32], spread: [12, 18], windLand: [18, 28], w850: [25, 35], w700: [35, 45], foehn: [3, 4], cape: [600, 1200], li: [0, -2], cloud: [300, 100], rain: [0.1, 0.5], blh: [2800, 3800] } },
   { name: "Experte", desc: "Viel Erfahrung, aktives Fliegen in starker Luft. Föhn bleibt auch hier ein Ausschlussgrund.",
-    v: { windLaunch: [22, 30], gust: [30, 38], spread: [15, 22], windLand: [22, 32], w850: [30, 40], w700: [45, 55], foehn: [4, 6], cape: [800, 1500], li: [-1, -3], cloud: [200, 50], rain: [0.2, 1], blh: [3500, 4500] } },
+    v: { windLaunch: [22, 30], gust: [30, 38], spread: [15, 22], windLand: [22, 32], w850: [30, 40], w700: [45, 55], foehn: [3, 5], cape: [800, 1500], li: [-1, -3], cloud: [200, 50], rain: [0.2, 1], blh: [3500, 4500] } },
 ];
 export const EXTRA_DEFS = [
   { key: "calmWind",    label: "Unter diesem Wind ist die Richtung egal", unit: "km/h", v: 6 },

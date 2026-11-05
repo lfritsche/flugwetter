@@ -10,6 +10,7 @@ export default defineNuxtConfig({
         { name: "viewport", content: "width=device-width,initial-scale=1,viewport-fit=cover" },
         { name: "theme-color", content: "#0d1318", media: "(prefers-color-scheme: dark)" },
         { name: "theme-color", content: "#edf1f3", media: "(prefers-color-scheme: light)" },
+        { name: "mobile-web-app-capable", content: "yes" },
         { name: "apple-mobile-web-app-capable", content: "yes" },
         { name: "apple-mobile-web-app-title", content: "Flugwetter" },
       ],

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
-import { setCtx, evaluateSite, dirPick, grade, buildBriefing } from "#shared/engine";
+import { setCtx, evaluateSite, dirPick, grade, foehnGrade, liveFoehnEvents, landFogGrade, liveFogCheck } from "#shared/engine";
 import { defaultSettings, presetLimits, makeParams } from "#shared/config";
 import { hourRanges, localKey } from "#shared/format";
 
@@ -10,7 +10,9 @@ const R = {
   foehn: {
     primary: { label: "A − B", a: { lat: 0, lon: 0 }, b: { lat: 1, lon: 1 } },
     secondary: { label: "C − D", a: { lat: 0, lon: 0 }, b: { lat: 1, lon: 1 } },
-    posName: "Südföhn", negName: "Nordströmung", explain: "",
+    posName: "Südföhn", negName: "Nordströmung", explain: "", mode: "sued", sector: [150, 240],
+    live: [{ type: "gust", src: "slf", station: "X1", name: "Spitz", sector: [150, 240], gust: [50, 50, 60, 80] },
+      { type: "split", src: "ms", a: "CHU", b: "RAG", nameA: "Chur", nameB: "Ragaz", sector: [120, 220], rhMax: 55, dT: 3 }],
     warnStation: { id: "x", name: "X", sector: [135, 225], dirLabel: "Süd", note: "" },
   },
   SITES: [
@@ -154,5 +156,156 @@ describe("Hilfsfunktionen", () => {
   it("hourRanges fasst Abschnitte zusammen", () => {
     expect(hourRanges([8, 9, 10, 14, 15])).toBe("8–11 und 14–16 Uhr");
     expect(hourRanges([12])).toBe("12 Uhr");
+  });
+});
+
+describe("Föhnregel", () => {
+  const ctx = (mode, level = 0, live = null) => {
+    const S = defaultSettings(R.SITES); S.level = level; S.levelBase = level; S.limits = presetLimits(level, makeParams(R.foehn));
+    setCtx({ S, DATA: { live }, R: { ...R, foehn: { ...R.foehn, mode, sector: mode === "nord" ? [300, 60] : [150, 240] } } });
+    return S.limits.foehn;
+  };
+  it("Praxisfall 5.11.2026: 3 hPa + Südwind 38 km/h ist rot", () => {
+    expect(foehnGrade({ foehn: 3, w700: 38, d700: 190 }, ctx("sued"))).toBe(2);
+  });
+  it("Fehltreffer 13.2.: 1,5 hPa + Südwind 35 km/h ist rot", () => {
+    expect(foehnGrade({ foehn: 1.5, w700: 35, d700: 207 }, ctx("sued"))).toBe(2);
+  });
+  it("ohne Höhenwind gelb ab 2, rot ab 4 hPa", () => {
+    const l = ctx("sued");
+    expect(foehnGrade({ foehn: 1, w700: 5, d700: 190 }, l)).toBe(0);
+    expect(foehnGrade({ foehn: 3, w700: 5, d700: 190 }, l)).toBe(1);
+    expect(foehnGrade({ foehn: 4, w700: 5, d700: 190 }, l)).toBe(2);
+  });
+  it("Wind aus der falschen Richtung löst nichts aus", () => {
+    expect(foehnGrade({ foehn: 1, w700: 50, d700: 330 }, ctx("sued"))).toBe(0);
+  });
+  it("steigender Druck ab 3 hPa ist rot", () => {
+    expect(foehnGrade({ foehn: 3, foehnTrend: 1.2, w700: 5, d700: 300 }, ctx("sued"))).toBe(2);
+  });
+  it("Nordföhn: rot ab 3 hPa, Nordwind + 1,5 hPa rot", () => {
+    const l = ctx("nord");
+    expect(foehnGrade({ foehn: 3, w700: 5, d700: 180 }, l)).toBe(2);
+    expect(foehnGrade({ foehn: 1.5, w700: 25, d700: 350 }, l)).toBe(2);
+    expect(foehnGrade({ foehn: 1, w700: 40, d700: 350 }, l)).toBe(1);
+  });
+  it("Experte: 3 hPa + 30 km/h nicht rot, 3 hPa + 35 km/h rot", () => {
+    const l = ctx("sued", 3);
+    expect(foehnGrade({ foehn: 3, w700: 30, d700: 190 }, l)).toBe(1);
+    expect(foehnGrade({ foehn: 3, w700: 35, d700: 190 }, l)).toBe(2);
+  });
+  it("keine Druckdaten: keine Bewertung", () => {
+    expect(foehnGrade({ foehn: null, w700: 40, d700: 190 }, ctx("sued"))).toBeNull();
+  });
+});
+
+describe("Föhn gemessen", () => {
+  const now = Date.now(), iso = m => new Date(now - m * 60e3).toISOString();
+  const run = (samples, level = 0) => {
+    const S = defaultSettings(R.SITES); S.level = level; S.levelBase = level; S.limits = presetLimits(level, makeParams(R.foehn));
+    setCtx({ S, DATA: { live: { foehnSamples: samples } }, R });
+    return liveFoehnEvents(now);
+  };
+  it("Spitz über Schwelle aus Süd löst aus, für Experten erst ab 80", () => {
+    const s = { "slf:X1": [{ t: iso(30), g: 70, dir: 190 }] };
+    expect(run(s)[0].lv).toBe(2);
+    expect(run(s, 3)).toEqual([]);
+  });
+  it("aus Nord oder älter als 3 h: nichts", () => {
+    expect(run({ "slf:X1": [{ t: iso(30), g: 90, dir: 10 }] })).toEqual([]);
+    expect(run({ "slf:X1": [{ t: iso(13 * 60), g: 90, dir: 190 }] })).toEqual([]);
+    const older = run({ "slf:X1": [{ t: iso(200), g: 90, dir: 190 }] })[0];   // nach der Haltezeit: gelb
+    expect(older.active).toBe(false);
+    expect(older.lv).toBe(1);
+  });
+  it("Chur warm/trocken und Ragaz kalt: Kaltluftsee-Split", () => {
+    const t = iso(20);
+    expect(run({ "ms:CHU": [{ t, dir: 175, rh: 36, ta: 18 }], "ms:RAG": [{ t, ta: 7 }] })[0].value).toContain("Chur warm");
+    expect(run({ "ms:CHU": [{ t, dir: 175, rh: 70, ta: 18 }], "ms:RAG": [{ t, ta: 7 }] })).toEqual([]);
+  });
+  it("Lücke: keine Änderung", () => {
+    expect(run({})).toEqual([]);
+  });
+  it("macht laufende Stunde + 3 h rot, nicht weiter", () => {
+    const S = defaultSettings(R.SITES); S.limits = presetLimits(0, makeParams(R.foehn)); S.tab = "south";
+    const NOW = localKey(new Date()), T = Array.from({ length: 12 }, (_, i) => localKey(new Date(now + i * 3600e3)));
+    const mk = () => { const H = { time: T }; for (const k of ["wind_speed_10m", "wind_gusts_10m", "wind_direction_10m"]) H[`${k}_icon_d2`] = T.map(() => (k.includes("dir") ? 200 : 5)); return H; };
+    const DATA = { fc: { south: { launch: mk(), land: mk() } }, foehn: null, hist: {}, live: { foehnSamples: { "slf:X1": [{ t: iso(5), g: 70, dir: 190 }] } } };
+    setCtx({ S, DATA, R, SEL: { dayIdx: 0, hour: null }, EVAL: {} });
+    const H = evaluateSite(R.SITES[0]).hours;
+    expect(H.find(h => h.t === NOW).score.grades.foehnLive).toBe(2);
+    expect(H.find(h => h.t === T[3]).score.grades.foehnLive).toBe(2);
+    expect(H.find(h => h.t === T[5]).score.grades.foehnLive ?? 0).toBeLessThan(2);   // nach der Haltezeit höchstens gelb
+  });
+});
+
+describe("Nebel am Landeplatz", () => {
+  it("Sicht und Nebelcode", () => {
+    expect(landFogGrade({ landVis: 140 })).toBe(2);
+    expect(landFogGrade({ landVis: 30000, landFogCode: true })).toBe(2);
+    expect(landFogGrade({ landVis: 3000 })).toBe(1);
+    expect(landFogGrade({ landVis: 11800, landLow: 88, landSpread: 2.3 })).toBe(1);   // Vaduz 5.11.: Hochnebel mit gehobener Basis
+    expect(landFogGrade({ landVis: 30000, landLow: 100, landSpread: 5 })).toBe(0);
+    expect(landFogGrade({ landVis: 30000, landLow: 0, landSpread: 0.5 })).toBe(0);
+    expect(landFogGrade({})).toBeNull();
+  });
+  it("Start frei, unten Nebel: Stunde rot, auch für Experten", () => {
+    for (const level of [0, 3]) {
+      const S = defaultSettings(R.SITES); S.level = level; S.levelBase = level; S.limits = presetLimits(level, makeParams(R.foehn)); S.tab = "south";
+      const DATA = makeData();
+      DATA.fc.south.land.visibility_icon_d2 = HOURS.map((_, h) => (h === 11 ? 140 : 30000));
+      setCtx({ S, DATA, R, SEL: { dayIdx: 1, hour: null }, EVAL: {} });
+      const hr = evaluateSite(R.SITES[0]).hours.find(x => x.t === `${DAY}T11:00`);
+      expect(hr.score.grades.landFog).toBe(2);
+      expect(hr.score.level).toBe(2);
+    }
+  });
+  it("Nebel-Check: unten dunkel und feucht, oben Sonne", () => {
+    const S = defaultSettings(R.SITES);
+    const RR = { ...R, fogCheck: { low: ["a"], high: ["b"] } };
+    const go = st => { setCtx({ S, DATA: { live: { st } }, R: RR }); return liveFogCheck(); };
+    expect(go({ a: { sun: 0.2, rh: 85 }, b: { sun: 1 } }).active).toBe(true);
+    expect(go({ a: { sun: 0.2, rh: 85 }, b: { sun: 0.1 } }).active).toBe(false);
+    expect(go({ a: { sun: 0.2, rh: 50 }, b: { sun: 1 } }).active).toBe(false);
+    expect(go({}).active).toBe(false);
+  });
+});
+
+describe("Review: nie grün ohne Klärung", () => {
+  it("guidedOnly bleibt für Anfänger gelb, für Erfahrene nicht gesperrt", () => {
+    const site = { ...R.SITES[0], guidedOnly: "Nur mit Einweisung" };
+    const go = level => {
+      const S = defaultSettings(R.SITES); S.level = level; S.levelBase = level; S.limits = presetLimits(level, makeParams(R.foehn)); S.tab = "south";
+      setCtx({ S, DATA: makeData(), R: { ...R, SITES: [site, R.SITES[1]] }, SEL: { dayIdx: 1, hour: null }, EVAL: {} });
+      return evaluateSite(site).hours.find(x => x.t === `${DAY}T11:00`).score;
+    };
+    expect(go(0).level).toBe(1);
+    expect(go(0).grades.guided).toBe(1);
+    expect(go(2).grades.guided).toBeUndefined();
+  });
+  it("ohne Föhndaten nicht grün", () => {
+    const S = defaultSettings(R.SITES); S.limits = presetLimits(0, makeParams(R.foehn)); S.tab = "south";
+    const DATA = makeData(); DATA.foehn = null;
+    setCtx({ S, DATA, R, SEL: { dayIdx: 1, hour: null }, EVAL: {} });
+    expect(evaluateSite(R.SITES[0]).hours.find(x => x.t === `${DAY}T11:00`).score.level).toBe(1);
+  });
+});
+
+describe("Nebel: Review 2", () => {
+  const scoreAt = (mutate, hour = 11) => {
+    const S = defaultSettings(R.SITES); S.limits = presetLimits(0, makeParams(R.foehn)); S.tab = "south";
+    const DATA = makeData(); mutate(DATA);
+    setCtx({ S, DATA, R, SEL: { dayIdx: 1, hour: null }, EVAL: {} });
+    return evaluateSite(R.SITES[0]).hours.find(x => x.t === `${DAY}T${String(hour).padStart(2, "0")}:00`).score;
+  };
+  it("ohne ICON-D2-Sicht am Landeplatz für Anfänger nicht grün", () => {
+    const sc = scoreAt(D => { D.fc.south.land.visibility_icon_d2 = HOURS.map(() => null); });
+    expect(sc.grades.landFog).toBe(1);
+    expect(sc.level).toBe(1);
+  });
+  it("Stunde vor Nebel unten ist nicht mehr grün", () => {
+    const sc = scoreAt(D => { D.fc.south.land.visibility_icon_d2 = HOURS.map((_, h) => (h === 12 ? 100 : 30000)); });
+    expect(sc.grades.buffer).toBe(1);
+    expect(sc.level).toBe(1);
   });
 });

@@ -89,7 +89,7 @@ export function useDashboard(regionId: string) {
       Object.entries(reg.value.errors || {}).forEach(([k, v]) => DATA.errors[k] = v);
       DATA.fcWeek = days === 7;
     } else DATA.errors.fc = reg.reason?.message || "Prognose nicht erreichbar";
-    if (live.status === "fulfilled") DATA.live = live.value; else DATA.errors.live = live.reason?.message;
+    if (live.status === "fulfilled") { DATA.live = live.value; if (live.value.errors?.live) DATA.errors.live = live.value.errors.live; } else DATA.errors.live = live.reason?.message;
     if (ba.status === "fulfilled") DATA.burnair = ba.value; else DATA.errors.burnair = ba.reason?.message;
     DATA.fetchedAt = new Date();
     loading.value = false;

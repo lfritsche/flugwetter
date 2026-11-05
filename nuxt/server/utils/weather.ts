@@ -7,7 +7,7 @@ export const HOURLY = [
   "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m",
   "wind_speed_850hPa", "wind_direction_850hPa", "wind_speed_700hPa", "wind_direction_700hPa",
   "cape", "lifted_index", "precipitation", "cloud_base", "cloud_cover_low", "boundary_layer_height",
-  "visibility", "pressure_msl", "weather_code",
+  "visibility", "pressure_msl", "weather_code", "temperature_2m", "dew_point_2m",
 ].join(",");
 export const MODELS_LIVE = "icon_d2,meteoswiss_icon_ch2,icon_eu,ecmwf_ifs025,gfs_seamless";
 export const MODELS_SIM = "icon_d2,meteoswiss_icon_ch2,gfs_seamless";
@@ -49,7 +49,7 @@ export async function fetchFoehn(R, base, range) {
   const FOEHN = R.foehn, FOEHN_POINTS = [FOEHN.primary.a, FOEHN.primary.b, FOEHN.secondary.a, FOEHN.secondary.b];
   const q = new URLSearchParams({
     latitude: FOEHN_POINTS.map(p => p.lat).join(","), longitude: FOEHN_POINTS.map(p => p.lon).join(","),
-    hourly: "pressure_msl", timezone: "Europe/Vienna", ...range,
+    hourly: "pressure_msl,temperature_800hPa", timezone: "Europe/Vienna", ...range,
   });
   const arr = await getJSON(base + q);
   const p = FOEHN_POINTS.map((_, i) => arr[i].hourly.pressure_msl);
@@ -57,7 +57,10 @@ export async function fetchFoehn(R, base, range) {
   const d = (a, b) => a == null || b == null ? null : Math.round((a - b) * 10) / 10;
   const bi = time.map((_, i) => d(p[0][i], p[1][i]));
   const lz = time.map((_, i) => d(p[2][i], p[3][i]));
-  const byTime = {}; time.forEach((t, i) => byTime[t] = { bi: bi[i], lz: lz[i] });
+  // Lee minus Luv auf ca. 2000 m, nur zur Anzeige (im Backtest kein Zusatznutzen)
+  const T = i => arr[i].hourly.temperature_800hPa || [];
+  const dt = time.map((_, i) => d(T(1)[i], T(0)[i]));
+  const byTime = {}; time.forEach((t, i) => byTime[t] = { bi: bi[i], lz: lz[i], dt: dt[i] });
   return { time, bi, lz, byTime };
 }
 /* Stations-Provider: liefern live → {ts, st:{id:{dir,ff,ffx}}} und history(h) → {id:{"YYYY-MM-DDTHH:00":{dir,ff,ffx}}} in km/h */
@@ -66,16 +69,16 @@ export const PROVIDERS = {
     parse(d) {
       return (d.features || []).reduce((acc, f) => {
         const p = f.properties.parameters, arr = k => (p[k] && p[k].data) || [];
-        acc[f.properties.station] = { dir: arr("DD"), ff: arr("FF").map(v => v == null ? null : v * 3.6), ffx: arr("FFX").map(v => v == null ? null : v * 3.6) };
+        acc[f.properties.station] = { dir: arr("DD"), ff: arr("FF").map(v => v == null ? null : v * 3.6), ffx: arr("FFX").map(v => v == null ? null : v * 3.6), so: arr("SO"), rf: arr("RF") };
         return acc;
       }, {});
     },
     async live(R) {
       const STATIONS = R.STATIONS;
-      const q = new URLSearchParams({ parameters: "DD,FF,FFX", station_ids: STATIONS.map(s => s.id).join(",") });
+      const q = new URLSearchParams({ parameters: "DD,FF,FFX,SO,RF", station_ids: STATIONS.map(s => s.id).join(",") });
       const d = await getJSON("https://dataset.api.hub.geosphere.at/v1/station/current/tawes-v1-10min?" + q);
       const st = this.parse(d), out = { ts: d.timestamps && d.timestamps[0], st: {} };
-      Object.entries(st).forEach(([id, v]) => out.st[id] = { dir: v.dir[0] ?? null, ff: v.ff[0] ?? null, ffx: v.ffx[0] ?? null });
+      Object.entries(st).forEach(([id, v]) => out.st[id] = { dir: v.dir[0] ?? null, ff: v.ff[0] ?? null, ffx: v.ffx[0] ?? null, sun: v.so[0] == null ? null : v.so[0] / 600, rh: v.rf[0] ?? null });
       return out;
     },
     async history(R, hoursBack) {
@@ -103,8 +106,8 @@ PROVIDERS.suedtirol = {
       try {
         const rows = await getJSON(`${BZ}/sensors?station_code=${st.id}`);
         const v = t => rows.find(r => r.TYPE === t);
-        const wg = v("WG"), gb = v("WG.BOE"), wr = v("WR");
-        out.st[st.id] = { dir: wr ? wr.VALUE : null, ff: wg ? wg.VALUE * 3.6 : null, ffx: gb ? gb.VALUE * 3.6 : null };
+        const wg = v("WG"), gb = v("WG.BOE"), wr = v("WR"), sd = v("SD"), lf = v("LF");
+        out.st[st.id] = { dir: wr ? wr.VALUE : null, ff: wg ? wg.VALUE * 3.6 : null, ffx: gb ? gb.VALUE * 3.6 : null, sun: sd ? sd.VALUE / 600 : null, rh: lf ? lf.VALUE : null };
         const t = wg && bzDate(wg.DATE);
         if (t && (!out.ts || t > new Date(out.ts))) out.ts = t.toISOString();
       } catch (e) { out.st[st.id] = {}; }
@@ -127,3 +130,85 @@ PROVIDERS.suedtirol = {
     return out;
   },
 };
+
+/* MeteoSchweiz Open Data (CC BY 4.0, Quelle: MeteoSchweiz). Zeiten UTC, Stundenwerte markieren das Intervallende. */
+const MS = "https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn";
+const num = x => x === "" || x === "-" || x == null ? null : +x;
+async function getText(url, headers = {}) {
+  const r = await fetch(url, { headers });
+  if (!r.ok && r.status !== 206) throw new Error("HTTP " + r.status + " bei " + new URL(url).host);
+  return r.text();
+}
+export function parseVQHA80(text, ids) {
+  const L = text.trim().split(/\r?\n/), H = L[0].split(";"), out = { ts: null, st: {} };
+  for (const l of L.slice(1)) {
+    const c = l.split(";");
+    if (!ids.has(c[0])) continue;
+    const g = k => num(c[H.indexOf(k)]), s = c[1];
+    out.ts = `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(8, 10)}:${s.slice(10, 12)}:00Z`;
+    const sun = g("sre000z0");
+    out.st[c[0]] = { dir: g("dkl010z0"), ff: g("fu3010z0"), ffx: g("fu3010z1"), sun: sun == null ? null : sun / 10, rh: g("ure200s0") };
+  }
+  return out;
+}
+const msTime = s => Date.UTC(+s.slice(6, 10), +s.slice(3, 5) - 1, +s.slice(0, 2), +s.slice(11, 13), +s.slice(14, 16));
+/* Stundenwerte: rec darf am Anfang abgeschnitten sein (Range), Kopf kommt aus now */
+export function parseHourly(now, rec, fromMs) {
+  const h = now.slice(0, now.search(/\r?\n/)).split(";"), F = h.indexOf("fu3010h0"), G = h.indexOf("fu3010h1"), D = h.indexOf("dkl010h0"), o = {};
+  for (const l of `${rec}\n${now}`.split(/\r?\n/)) {
+    if (!/^[A-Z0-9]{3};\d/.test(l)) continue;
+    const c = l.split(";"), t = msTime(c[1]) - 3600e3;
+    if (t >= fromMs && num(c[F]) != null) o[localKey(new Date(t))] = { dir: num(c[D]), ff: num(c[F]), ffx: num(c[G]) };
+  }
+  return o;
+}
+PROVIDERS.meteoswiss = {
+  async live(R) {
+    return parseVQHA80(await getText("https://data.geo.admin.ch/ch.meteoschweiz.messwerte-aktuell/VQHA80.csv"), new Set(R.STATIONS.map(s => s.id)));
+  },
+  async history(R, hoursBack) {
+    const ids = [...new Set(R.SITES.flatMap(s => [s.historyStation, s.measureStation]).filter(Boolean))];
+    const from = Date.now() - hoursBack * 3600e3, out = {};
+    await Promise.all(ids.map(async id => {
+      const a = id.toLowerCase();
+      const [now, rec] = await Promise.all([
+        getText(`${MS}/${a}/ogd-smn_${a}_h_now.csv`),
+        getText(`${MS}/${a}/ogd-smn_${a}_h_recent.csv`, { Range: `bytes=-${hoursBack * 200 + 4000}` }),
+      ]);
+      out[id] = parseHourly(now, rec, from);
+    }));
+    return out;
+  },
+};
+
+/* Föhn-Messsignale der letzten Stunden, roh je "src:id". Einzelne Ausfälle fallen still weg: Messung verschärft nur. */
+export function parseSlf(rows) {
+  return rows.map(r => ({ t: r.measure_date, g: r.VW_30MIN_MAX == null ? null : r.VW_30MIN_MAX * 3.6, dir: r.DW_30MIN_MEAN, rh: r.RH_30MIN_MEAN, ta: r.TA_30MIN_MEAN }));
+}
+export function parseMsNow(text) {
+  const L = text.trim().split(/\r?\n/), H = L[0].split(";"), i = k => H.indexOf(k);
+  return L.slice(1).map(l => { const c = l.split(";"); return { t: new Date(msTime(c[i("reference_timestamp")])).toISOString(), g: num(c[i("fu3010z1")]), dir: num(c[i("dkl010z0")]), rh: num(c[i("ure200s0")]), ta: num(c[i("tre200s0")]) }; });
+}
+const SAMPLERS = {
+  slf: async id => parseSlf(await getJSON(`https://measurement-api.slf.ch/public/api/imis/station/${id}/measurements`, 1)),
+  meteoswiss: async id => { const a = id.toLowerCase(); return parseMsNow(await getText(`${MS}/${a}/ogd-smn_${a}_t_now.csv`)); },
+  suedtirol: async id => {
+    const from = ymd(new Date(Date.now() - 864e5)), to = ymd(new Date(Date.now() + 864e5));
+    const get = code => getJSON(`${BZ}/timeseries?station_code=${id}&sensor_code=${code}&date_from=${from}&date_to=${to}`, 1);
+    const [gb, wr, lf] = await Promise.all([get("WG.BOE"), get("WR"), get("LF").catch(() => [])]);
+    const by = {};
+    const put = (arr, k, f) => arr.forEach(r => { (by[r.DATE] = by[r.DATE] || { t: bzDate(r.DATE).toISOString() })[k] = f(r.VALUE); });
+    put(gb, "g", v => v * 3.6); put(wr, "dir", v => v); put(lf, "rh", v => v);
+    return Object.values(by);
+  },
+};
+export async function fetchFoehnSamples(R) {
+  const defs = R.foehn.live || [], keys = new Set();
+  defs.forEach(d => (d.type === "split" ? [d.a, d.b] : [d.station]).forEach(id => keys.add(`${d.src}:${id}`)));
+  const since = Date.now() - 12 * 3600e3, out = {}, failed = [];
+  await Promise.all([...keys].map(async k => {
+    const [src, id] = k.split(":");
+    try { out[k] = (await SAMPLERS[src](id)).filter(r => +new Date(r.t) >= since); } catch (e) { failed.push(k); console.warn("[foehn-live]", k, e.message); }
+  }));
+  return { samples: out, failed };
+}

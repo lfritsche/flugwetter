@@ -11,7 +11,7 @@ const REGION = {
   storeKey: "flugwetter.settings.v2",
   brand: 'Flugwetter <span>Walgau</span>',
   bg: "/img/walgau.jpg",
-  credits: "Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), GeoSphere Austria, Holfuy, walgauwetter.at. Hintergrund: Anton Repponen, „Paraglider in orange clouds“ (CC0, via Wikimedia Commons).",
+  credits: "Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), GeoSphere Austria, Holfuy, walgauwetter.at, <a href=\"https://www.slf.ch\" target=\"_blank\" rel=\"noopener\">WSL-Institut für Schnee- und Lawinenforschung SLF</a>. Hintergrund: Anton Repponen, „Paraglider in orange clouds“ (CC0, via Wikimedia Commons).",
   stationProvider: "geosphere",
   stationLabel: "GeoSphere",
   areaName: "Walgau",
@@ -19,10 +19,13 @@ const REGION = {
     primary:   { label: "Bozen − Innsbruck", a: { lat: 46.50, lon: 11.35 }, b: { lat: 47.26, lon: 11.39 } },
     secondary: { label: "Lugano − Zürich",   a: { lat: 46.00, lon: 8.96 },  b: { lat: 47.46, lon: 8.55 } },
     combine: "max",   // Föhn = Maximum aus Bozen−Innsbruck und Lugano−Zürich (Rätikon/Graubünden)
+    mode: "sued", sector: [150, 240],
+    live: [{ type: "gust", src: "slf", station: "MLB1", name: "Spitz (2186 m)", sector: [150, 240], gust: [50, 50, 60, 80] }],
     posName: "Südföhn", negName: "Nordströmung",
     explain: "Positiv = Südföhn-Tendenz.",
     warnStation: { id: "11304", name: "Brand", sector: [135, 225], dirLabel: "Südwind", note: "Föhn kommt dort zuerst an." },
   },
+  fogCheck: { low: ["11105"], high: ["11104"] },
   SITES: [
   {
     id: "hensler", name: "Hensler", area: "Schnifis", lat: 47.2283, lon: 9.7409, elev: 1305,

@@ -7,8 +7,12 @@ const D = useDash();
 const s = computed(() => D.R.SITES.find(x => x.id === D.S.tab));
 const tick = ref(Math.floor(Date.now() / 300000));
 let iv: any;
-onMounted(() => { iv = setInterval(() => tick.value = Math.floor(Date.now() / 300000), 60000); });
+onMounted(() => { iv = setInterval(() => {
+    const t = Math.floor(Date.now() / 300000);
+    if (t !== tick.value) { tick.value = t; Object.keys(camFailed).forEach(k => delete camFailed[k]); }   // alle 5 min neu versuchen
+  }, 60000); });
 onUnmounted(() => clearInterval(iv));
+const camFailed = reactive<Record<string, boolean>>({});   // Bild nicht ladbar (z. B. Anbieter blockt): Hinweis statt kaputtem Bild
 const camURL = (u: string) => u + (u.includes("?") ? "&" : "?") + "t=" + tick.value;
 
 // ---- Zeitregler je Kamera
@@ -71,7 +75,8 @@ const more = computed(() => {
     <div v-if="D.S.mode === 'sim'" class="flag sim">Rückblick aktiv: Webcams und Messwerte zeigen trotzdem jetzt.</div>
     <div class="cams" :class="{ single: s.cams.length === 1 }">
       <a v-for="(c, i) in s.cams" :key="c.img" class="cam" :href="c.link" target="_blank" rel="noopener">
-        <img :src="tl[i]?.url && tl[i].url !== 'none' ? tl[i].url : camURL(c.img)" :alt="`Webcam ${c.label}`" loading="lazy">
+        <div v-if="camFailed[c.img]" class="placeholder"><div class="hint">Webcam gerade nicht erreichbar. Tippen öffnet die Seite des Anbieters.</div></div>
+        <img v-else :src="tl[i]?.url && tl[i].url !== 'none' ? tl[i].url : camURL(c.img)" :alt="`Webcam ${c.label}`" loading="lazy" @error="camFailed[c.img] = true">
         <span>{{ c.label }}</span>
         <span v-if="tl[i] && tl[i].label !== 'Live'" class="tlbadge">{{ tl[i].url === "none" ? "kein Bild " : (tl[i].day ? "Gestern " : "") }}{{ tl[i].label }}</span>
       </a>

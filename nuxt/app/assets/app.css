@@ -84,7 +84,7 @@ header.top .spacer { flex: 1; }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .12); }
 .seg button[data-mode="sim"][aria-pressed="true"] { color: var(--sim); }
 .seg.two { grid-template-columns: 1fr 1fr; }
-.seg.regions { background: color-mix(in srgb, var(--surface) 72%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
+.seg.regions { grid-template-columns: repeat(3, 1fr); background: color-mix(in srgb, var(--surface) 72%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
 .seg a { border-radius: 7px; padding: 7px 4px; font-size: 14px; font-weight: 700; color: var(--muted); text-align: center; text-decoration: none; }
 .seg a[aria-current="page"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 2px rgb(0 0 0 / .12); }
 .seg button[data-flight][aria-pressed="true"] { color: var(--accent); }
@@ -219,6 +219,7 @@ nav.tabs::-webkit-scrollbar { display: none; }
 .cams.single { grid-auto-columns: 100%; }
 .cam { scroll-snap-align: start; position: relative; display: block; border-radius: 10px; overflow: hidden; background: var(--surface-2); aspect-ratio: 16 / 9; max-width: 100%; text-decoration: none; }
 .cam img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cam .placeholder { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px 16px 40px; }
 .cam span { position: absolute; left: 8px; bottom: 8px; background: rgb(0 0 0 / .55); color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 999px; }
 .holfuy-frame { width: 100%; height: 196px; border: 0; border-radius: 8px; background: #fff; display: block; }
 .stations { display: grid; }
