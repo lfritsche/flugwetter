@@ -209,7 +209,7 @@ export function liveFoehnEvents(nowMs = Date.now()) {
   const hhmm = t => new Date(t).toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Vienna" });
   const finish = (lv, last, value, text) => {
     const active = nowMs - last <= HOLD_MS;
-    out.push({ lv: active ? lv : 1, base: lv, active, last, value: active ? value : `früher heute, ${hhmm(last)} Uhr`, text: active ? text : `Früher heute Föhn gemessen (${value}, ${hhmm(last)} Uhr). Ende nicht gesichert: Messstationen prüfen, nur mit Fluglehrer entscheiden.` });
+    out.push({ lv: active ? lv : 1, base: lv, active, last, value: active ? value : `früher heute, ${hhmm(last)} Uhr`, text: active ? text : `Früher heute Föhn gemessen (${value}, ${hhmm(last)} Uhr). Ende nicht gesichert: Messstationen prüfen.` });
   };
   for (const d of FOEHN.live) {
     const rows = id => (samples[`${d.src}:${id}`] || []).filter(r => { const t = +new Date(r.t); return t >= since && t <= nowMs + 900e3; });

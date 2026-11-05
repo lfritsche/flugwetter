@@ -107,3 +107,27 @@ test("Adresse: Startplatz im Pfad, Level als Parameter", async ({ page }) => {
   await expect(page).toHaveURL(/\/walgau\/[a-z]+\?level=/);
   await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
 });
+
+test("Level aus dem Link wird nicht gespeichert", async ({ page }) => {
+  await page.goto("/walgau/hensler?level=experte");
+  await expect(page.locator(".level-top b")).toHaveText("Experte");
+  await expect(page.locator(".controls .flag")).toContainText("Dein eigenes ist Anfänger");
+
+  // Neuer Besuch ohne Parameter: wieder das eigene Level
+  await page.goto("/walgau/hensler");
+  await expect(page.locator(".level-top b")).toHaveText("Anfänger");
+  await expect(page.locator(".controls .flag")).toHaveCount(0);
+
+  // Zurück auf eigenes Level per Knopf
+  await page.goto("/walgau/hensler?level=erfahren");
+  await page.locator(".controls .flag button").click();
+  await expect(page.locator(".level-top b")).toHaveText("Anfänger");
+  await expect(page).toHaveURL(/level=anfaenger$/);
+
+  // Selbst am Regler ändern speichert
+  await page.goto("/walgau/hensler?level=experte");
+  await page.locator('input[aria-label="Pilotenlevel"]').fill("1");
+  await expect(page.locator(".controls .flag")).toHaveCount(0);
+  await page.goto("/walgau/hensler");
+  await expect(page.locator(".level-top b")).toHaveText("Fortgeschritten");
+});

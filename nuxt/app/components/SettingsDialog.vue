@@ -14,6 +14,7 @@ function open() {
 defineExpose({ open });
 function move(id: string, dir: number) { const i = form.order.indexOf(id), j = i + dir; [form.order[i], form.order[j]] = [form.order[j], form.order[i]]; }
 function save() {
+  D.keepLevel();
   const S = D.S, num = (v, fb) => (isFinite(parseFloat(v)) ? parseFloat(v) : fb);
   D.PARAMS.forEach(p => S.limits[p.key] = { g: num(form.limits[p.key].g, S.limits[p.key].g), r: num(form.limits[p.key].r, S.limits[p.key].r) });
   const oldSim = S.extra.simDays;

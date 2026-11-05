@@ -8,6 +8,7 @@ const idx = computed(() => custom.value ? S.levelBase : S.level);
 const L = computed(() => LEVELS[idx.value]);
 const F = D.R.foehn;
 const lvlIdx = computed(() => idx.value);
+const ownName = computed(() => { const v = D.visit.value; return !v ? "" : v.level === "custom" ? "Eigene Werte" : LEVELS[v.level].name; });
 </script>
 
 <template>
@@ -25,6 +26,10 @@ const lvlIdx = computed(() => idx.value);
       </div>
       <input type="range" min="0" max="3" step="1" :value="idx" aria-label="Pilotenlevel" :aria-valuetext="L.name" @input="D.setLevel(+($event.target as HTMLInputElement).value)">
       <div class="level-ticks"><span v-for="(l, i) in LEVELS" :key="i" :class="{ on: i === idx }">{{ l.name }}</span></div>
+    </div>
+    <div v-if="D.visit.value" class="flag warn">
+      <b>Level aus dem Link: {{ L.name }}.</b> Dein eigenes ist {{ ownName }}. Wird nicht gespeichert.
+      <button type="button" class="btn" style="display:block;margin-top:6px" @click="D.restoreOwnLevel()">{{ ownName }} verwenden</button>
     </div>
     <details class="explain">
       <summary>Welche Werte gelten gerade?</summary>

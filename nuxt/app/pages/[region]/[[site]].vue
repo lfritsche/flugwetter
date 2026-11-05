@@ -18,7 +18,7 @@ function fromUrl() {
   const site = route.params.site, known = D.R.SITES.some(s => s.id === site);
   if (known && D.S.tab !== site) { D.S.tab = site; D.SEL.hour = null; }
   const lv = levelFromSlug(route.query.level);
-  if (lv != null && D.S.level !== lv) D.setLevel(lv);
+  if (lv != null) D.visitLevel(lv);
 }
 fromUrl();
 watch(() => [route.params.site, route.query.level], fromUrl);

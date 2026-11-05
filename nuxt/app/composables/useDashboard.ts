@@ -38,7 +38,19 @@ export function useDashboard(regionId: string) {
     };
   }
   const S = reactive(load());
-  watch(S, v => safe(() => localStorage.setItem(R.storeKey, JSON.stringify(v))), { deep: true });
+  // Level aus einem Link gilt nur für diesen Besuch: gespeichert bleibt das eigene, bis man selbst etwas ändert
+  const visit = ref(null);
+  watch(S, v => safe(() => localStorage.setItem(R.storeKey, JSON.stringify(visit.value ? { ...v, ...visit.value } : v))), { deep: true });
+  function visitLevel(i) {
+    if (S.level === i) return;
+    if (!visit.value) visit.value = { level: S.level, levelBase: S.levelBase, limits: JSON.parse(JSON.stringify(S.limits)) };
+    S.level = i; S.levelBase = i; S.limits = presetLimits(i, PARAMS);
+  }
+  function restoreOwnLevel() {
+    if (!visit.value) return;
+    Object.assign(S, visit.value); visit.value = null;
+  }
+  const keepLevel = () => { visit.value = null; };
 
   // ---------- Daten & Auswahl
   const SEL = reactive({ dayIdx: 0, hour: null, touched: false });
@@ -110,7 +122,7 @@ export function useDashboard(regionId: string) {
     if (mode === "sim" && !DATA.simFc) await fetchSim();
   }
   function refresh() { return S.mode === "sim" ? (DATA.simFc = null, fetchSim()) : fetchAll(); }
-  function setLevel(i) { S.level = i; S.levelBase = i; S.limits = presetLimits(i, PARAMS); }
+  function setLevel(i) { visit.value = null; S.level = i; S.levelBase = i; S.limits = presetLimits(i, PARAMS); }
 
   // Rückblick: mit dem besten Tag starten; Tagesindex begrenzen
   watch(EVAL, ev => {
@@ -122,7 +134,7 @@ export function useDashboard(regionId: string) {
     }
   });
 
-  const D = { R, PARAMS, S, SEL, DATA, EVAL, sync, loading, simLoading, BA, burnairEnabled, burnairLogin, burnairLogout, fetchAll, fetchSim, setMode, refresh, setLevel };
+  const D = { R, PARAMS, S, SEL, DATA, EVAL, sync, loading, simLoading, BA, burnairEnabled, visit, visitLevel, restoreOwnLevel, keepLevel, burnairLogin, burnairLogout, fetchAll, fetchSim, setMode, refresh, setLevel };
   provide("dash", D);
   return D;
 }
