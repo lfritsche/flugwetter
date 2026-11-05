@@ -11,7 +11,7 @@ const REGION = {
   storeKey: "flugwetter.settings.v2",
   brand: 'Flugwetter <span>Walgau</span>',
   bg: "/img/walgau.jpg",
-  credits: "Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), GeoSphere Austria, Holfuy, walgauwetter.at. Hintergrund: Anton Repponen, „Paraglider in orange clouds“ (CC0, via Wikimedia Commons). Auch: <a href=\"/pustertal\">Flugwetter Pustertal</a>.",
+  credits: "Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), GeoSphere Austria, Holfuy, walgauwetter.at. Hintergrund: Anton Repponen, „Paraglider in orange clouds“ (CC0, via Wikimedia Commons).",
   stationProvider: "geosphere",
   stationLabel: "GeoSphere",
   areaName: "Walgau",

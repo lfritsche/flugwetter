@@ -9,9 +9,11 @@ export default defineCachedEventHandler(async (event) => {
     foehn: fetchFoehn(R, OM_LIVE, { forecast_days: String(days) }),
     hist: PROVIDERS[R.stationProvider].history(R, 36),
   });
+  // Ohne Prognose nichts cachen: Fehler geht an den Client, der nächste Abruf versucht es neu
+  if (!data.fc) throw createError({ statusCode: 502, statusMessage: errors.fc || "Prognose nicht verfügbar" });
   return { ...data, errors, days, fetchedAt: new Date().toISOString() };
 }, {
   maxAge: 600,
-  swr: true,
+  swr: false,   // nie abgelaufene Daten ausliefern: nach längerer Pause wären sie tagealt und das Dashboard leer
   getKey: (event) => `region:${getRouterParam(event, "id")}:${Number(getQuery(event).days) === 7 ? 7 : 3}`,
 });

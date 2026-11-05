@@ -48,7 +48,8 @@ const err = computed(() => sim.value ? D.DATA.errors.sim : D.DATA.errors.fc);
   <section class="hero" :class="{ sim }" aria-live="polite">
     <template v-if="view.empty">
       <div v-if="err" class="err">Daten nicht geladen: {{ err }}. Tippe auf Neu laden.</div>
-      <div v-else class="muted">{{ sim ? `Lade Rückblick der letzten ${D.S.extra.simDays} Tage…` : "Lade Prognose…" }}</div>
+      <div v-else-if="D.loading.value || D.simLoading.value || !D.DATA.fetchedAt" class="muted">{{ sim ? `Lade Rückblick der letzten ${D.S.extra.simDays} Tage…` : "Lade Prognose…" }}</div>
+      <div v-else class="err">Keine aktuellen Daten. Tippe auf Neu laden.</div>
     </template>
     <template v-else>
       <div class="scene-wrap">

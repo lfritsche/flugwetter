@@ -6,10 +6,11 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "preview": "wrangler dev",
-    "deploy": "nuxt build && wrangler deploy",
+    "deploy": "nuxt build && XDG_CONFIG_HOME=$HOME/.config/wrangler-flugwetter wrangler --cwd .output deploy",
     "test": "vitest run",
     "typecheck": "nuxt typecheck",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "nuxt": "4.6.0"

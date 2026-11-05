@@ -48,7 +48,7 @@ const notes = computed(() => {
 
 <template>
   <section class="card">
-    <template v-if="!view"><h2>Stunden</h2><div class="muted">Lade…</div></template>
+    <template v-if="!view"><h2>Stunden</h2><div class="muted">{{ D.loading.value || !D.DATA.fetchedAt ? "Lade…" : "Keine Daten." }}</div></template>
     <template v-else>
       <h2>{{ view.name }}<template v-if="!view.sim">, {{ view.p.wd }} {{ view.p.dm }}</template> <small>Spalte antippen für Gründe</small></h2>
       <div class="table-scroll">

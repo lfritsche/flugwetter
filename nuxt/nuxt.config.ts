@@ -34,6 +34,7 @@ export default defineNuxtConfig({
       deployConfig: true,
       wrangler: {
         name: "flugwetter",
+        account_id: "00baa5f247c9a54a4fc482db743571a9",   // fest: nie in einen anderen Account deployen
         triggers: { crons: ["0 5 * * *"] },
         kv_namespaces: [{ binding: "CACHE", id: "28990dcb7d7b48bb8af369e42dde7282" }],
       },

@@ -16,5 +16,6 @@ export default defineCachedEventHandler(async (event) => {
   return { ...data, errors, days: n, fetchedAt: new Date().toISOString() };
 }, {
   maxAge: 6 * 3600,
+  swr: false,
   getKey: (event) => `sim:${getRouterParam(event, "id")}:${Number(getQuery(event).days) || 30}:${new Date().toISOString().slice(0, 10)}`,
 });

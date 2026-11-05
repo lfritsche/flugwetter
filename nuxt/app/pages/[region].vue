@@ -11,15 +11,18 @@ onMounted(() => {
   try { localStorage.setItem("flugwetter.region", id); } catch {}
   document.documentElement.style.setProperty("--bg-img", `url("${D.R.bg}")`);
   D.fetchAll();
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && D.S.mode !== "sim" && D.DATA.fetchedAt && Date.now() - +new Date(D.DATA.fetchedAt) > 15 * 60e3) D.fetchAll();
-  });
+  document.addEventListener("visibilitychange", onVisible);
 });
+function onVisible() {
+  if (document.visibilityState === "visible" && D.S.mode !== "sim" && D.DATA.fetchedAt && Date.now() - +new Date(D.DATA.fetchedAt) > 15 * 60e3) D.fetchAll();
+}
+onUnmounted(() => document.removeEventListener("visibilitychange", onVisible));
 </script>
 
 <template>
   <div class="wrap">
     <TopBar @settings="settings?.open()" />
+    <RegionSwitch />
     <ControlsPanel />
     <SiteTabs />
     <HeroPanel />

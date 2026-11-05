@@ -12,7 +12,7 @@ const REGION = {
   brand: 'Flugwetter <span>Pustertal</span>',
   areaName: "Pustertal",
   bg: "/img/pustertal.jpg",
-  credits: 'Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), Landeswetterdienst Südtirol, foto-webcam.eu, Panomax, Kronplatz. Hintergrund: Friedrich Haag, „Two paragliders in the Dolomites“ (<a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons). Auch: <a href="/walgau">Flugwetter Walgau</a>.',
+  credits: 'Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), Landeswetterdienst Südtirol, foto-webcam.eu, Panomax, Kronplatz. Hintergrund: Friedrich Haag, „Two paragliders in the Dolomites“ (<a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons).',
   stationProvider: "suedtirol",
   stationLabel: "Landeswetterdienst Südtirol",
   foehn: {

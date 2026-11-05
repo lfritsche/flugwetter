@@ -84,6 +84,9 @@ header.top .spacer { flex: 1; }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .12); }
 .seg button[data-mode="sim"][aria-pressed="true"] { color: var(--sim); }
 .seg.two { grid-template-columns: 1fr 1fr; }
+.seg.regions { background: color-mix(in srgb, var(--surface) 72%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
+.seg a { border-radius: 7px; padding: 7px 4px; font-size: 14px; font-weight: 700; color: var(--muted); text-align: center; text-decoration: none; }
+.seg a[aria-current="page"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 2px rgb(0 0 0 / .12); }
 .seg button[data-flight][aria-pressed="true"] { color: var(--accent); }
 .level-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .level-top b { font-family: var(--font-display); font-size: 19px; font-weight: 700; }
