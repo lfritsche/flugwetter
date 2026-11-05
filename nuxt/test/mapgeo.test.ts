@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, it, expect } from "vitest";
-import { regionBBox, gridPoints, gridAt, fanPolygon, glidePath, fogTopFrom, reliefColor, bearing, distM, GLIDE } from "#shared/mapgeo";
+import { regionBBox, gridPoints, gridAt, fanPolygon, glidePath, fogTopFrom, reliefColor, bearing, distM, GLIDE, segmentOk, spawnBox } from "#shared/mapgeo";
 import { REGIONS } from "#shared/regions";
 
 describe("Raster", () => {
@@ -76,5 +76,26 @@ describe("Nebel und Wolken", () => {
       expect(e).toEqual([...e].sort((a, b) => a - b));
       expect(new Set(e).size).toBe(e.length);
     }
+  });
+});
+
+describe("Windfeld-Striche", () => {
+  const W = 600, H = 400;
+  it("zeichnet kurze Striche im Bild", () => {
+    expect(segmentOk({ x: 10, y: 10 }, { x: 14, y: 12 }, W, H)).toBe(true);
+  });
+  it("verwirft riesige Sprünge hinter der Kamera", () => {
+    expect(segmentOk({ x: 10, y: 10 }, { x: 1.6e9, y: -3e8 }, W, H)).toBe(false);
+  });
+  it("verwirft lange Sprünge innerhalb des Bildes", () => {
+    expect(segmentOk({ x: 10, y: 10 }, { x: 90, y: 10 }, W, H)).toBe(false);
+  });
+  it("verwirft Punkte ausserhalb und ungültige Werte", () => {
+    expect(segmentOk({ x: -5, y: 10 }, { x: 0, y: 10 }, W, H)).toBe(false);
+    expect(segmentOk({ x: NaN, y: 10 }, { x: 5, y: 10 }, W, H)).toBe(false);
+  });
+  it("Spawn nur im sichtbaren Teil des Rasters", () => {
+    expect(spawnBox({ w: 9, e: 10, s: 47, n: 48 }, { w: 9.5, e: 11, s: 46, n: 47.5 })).toEqual({ w: 9.5, e: 10, s: 47, n: 47.5 });
+    expect(spawnBox({ w: 9, e: 10, s: 47, n: 48 }, { w: 11, e: 12, s: 47, n: 48 })).toBeNull();
   });
 });

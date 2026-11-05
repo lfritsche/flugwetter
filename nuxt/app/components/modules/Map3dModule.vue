@@ -3,7 +3,7 @@
 // Nebel/Wolken, Leitungen, Sperrzonen und Windfeld. Gleitpfad und Windfeld sind nur grobe Orientierung.
 // @ts-nocheck
 import { profileHour, curDay, sectorGrade, landFogGrade } from "#shared/engine";
-import { fanPolygon, glidePath, distM, fogTopFrom, reliefColor, gridAt } from "#shared/mapgeo";
+import { fanPolygon, glidePath, distM, fogTopFrom, reliefColor, gridAt, segmentOk, spawnBox } from "#shared/mapgeo";
 import { LEVEL_TXT, compassName } from "#shared/format";
 const MAPLIBRE_JS = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.0/dist/maplibre-gl.js";
 const MAPLIBRE_CSS = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.0/dist/maplibre-gl.css";
@@ -193,7 +193,11 @@ function stopWind() {
   if (raf) cancelAnimationFrame(raf); raf = null;
   const c = canvas.value; if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height);
 }
-function newPart() { const b = grid.bbox; return { lon: b.w + Math.random() * (b.e - b.w), lat: b.s + Math.random() * (b.n - b.s), age: Math.random() * 90 }; }
+// Neue Partikel nur im sichtbaren Teil des Rasters, sonst liegt am Handy und bei tiefem Blick der Grossteil ausserhalb
+function newPart() {
+  const v = map.getBounds(), b = spawnBox(grid.bbox, { w: v.getWest(), e: v.getEast(), s: v.getSouth(), n: v.getNorth() }) || grid.bbox;
+  return { lon: b.w + Math.random() * (b.e - b.w), lat: b.s + Math.random() * (b.n - b.s), age: Math.random() * 90 };
+}
 function startWind() {
   const c = canvas.value, ctx = c.getContext("2d");
   parts = Array.from({ length: 500 }, newPart);
@@ -205,6 +209,7 @@ function startWind() {
     const w = box.value.clientWidth, hh = box.value.clientHeight, dpr = devicePixelRatio || 1;
     if (c.width !== w * dpr || c.height !== hh * dpr) { c.width = w * dpr; c.height = hh * dpr; }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (map.isMoving()) { ctx.clearRect(0, 0, w, hh); return; }   // keine Schlieren beim Verschieben
     ctx.globalCompositeOperation = "destination-out"; ctx.fillStyle = "rgba(0,0,0,0.09)"; ctx.fillRect(0, 0, w, hh);
     ctx.globalCompositeOperation = "source-over"; ctx.lineWidth = 1.5;
     const U = grid.u[gridHour], V = grid.v[gridHour], speed = 0.1 * dt;   // km je km/h, stark zeitgerafft und unabhängig von der Bildrate
@@ -214,6 +219,7 @@ function startWind() {
       const a = map.project([p.lon, p.lat]);
       p.lon += u * speed / (111 * Math.cos(p.lat * Math.PI / 180)); p.lat += v * speed / 111;
       const b = map.project([p.lon, p.lat]), s = Math.hypot(u, v);
+      if (!segmentOk(a, b, w, hh)) { parts[i] = { ...newPart(), age: 0 }; continue; }
       ctx.strokeStyle = s < 12 ? "rgba(20,70,130,0.8)" : s < 25 ? "rgba(235,150,0,0.95)" : "rgba(215,40,40,0.95)";
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
     }

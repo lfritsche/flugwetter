@@ -84,3 +84,14 @@ export function reliefColor({ fogTop, cloudBase }) {
   if (useCloud) stops.push(cloudBase - 30, none, cloudBase + 70, cloud, 9000, cloud); else stops.push(9000, none);
   return ["interpolate", ["linear"], ["elevation"], ...stops];
 }
+
+/** Windfeld: Nur zeichnen, wenn beide Punkte im Bild und nah beieinander sind. Punkte hinter der Kamera oder am Horizont landen sonst als riesige Striche im Bild. */
+export function segmentOk(a, b, w, h, maxLen = 30) {
+  const inside = p => Number.isFinite(p.x) && Number.isFinite(p.y) && p.x >= 0 && p.y >= 0 && p.x <= w && p.y <= h;
+  return inside(a) && inside(b) && Math.hypot(b.x - a.x, b.y - a.y) <= maxLen;
+}
+/** Sichtbarer Teil des Windrasters. Null, wenn sich beide nicht überschneiden. */
+export function spawnBox(bbox, view) {
+  const r = { w: Math.max(bbox.w, view.w), e: Math.min(bbox.e, view.e), s: Math.max(bbox.s, view.s), n: Math.min(bbox.n, view.n) };
+  return r.w < r.e && r.s < r.n ? r : null;
+}
