@@ -20,7 +20,10 @@ const REGION = {
     secondary: { label: "Lugano − Zürich",   a: { lat: 46.00, lon: 8.96 },  b: { lat: 47.46, lon: 8.55 } },
     combine: "max",   // Föhn = Maximum aus Bozen−Innsbruck und Lugano−Zürich (Rätikon/Graubünden)
     mode: "sued", sector: [150, 240],
-    live: [{ type: "gust", src: "slf", station: "MLB1", name: "Spitz (2186 m)", sector: [150, 240], gust: [50, 50, 60, 80] }],
+    live: [
+      { type: "gust", kind: "tal", src: "geosphere", station: "11304", name: "Brand", sector: [150, 240], gust: [25, 25, 35, 40] },
+      { type: "gust", kind: "kamm", src: "slf", station: "MLB1", name: "Spitz (2186 m)", sector: [150, 240], gust: [50, 50, 60, 80] },
+    ],
     posName: "Südföhn", negName: "Nordströmung",
     explain: "Positiv = Südföhn-Tendenz.",
     warnStation: { id: "11304", name: "Brand", sector: [135, 225], dirLabel: "Südwind", note: "Föhn kommt dort zuerst an." },

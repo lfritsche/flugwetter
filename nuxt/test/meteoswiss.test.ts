@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, it, expect } from "vitest";
-import { parseVQHA80, parseHourly, parseSlf, parseMsNow } from "../server/utils/weather";
+import { parseVQHA80, parseHourly, parseSlf, parseMsNow, parseGeosphereSamples } from "../server/utils/weather";
 
 describe("MeteoSchweiz-Parser", () => {
   it("VQHA80: Station, km/h, fehlende Werte", () => {
@@ -29,5 +29,10 @@ describe("MeteoSchweiz-Parser", () => {
     const r = parseSlf([{ measure_date: "2026-11-05T05:30:00Z", VW_30MIN_MAX: 29.3, DW_30MIN_MEAN: 192, RH_30MIN_MEAN: 40, TA_30MIN_MEAN: 3 }]);
     expect(r[0].g).toBeCloseTo(105.48, 1);
     expect(r[0].dir).toBe(192);
+  });
+  it("GeoSphere: m/s nach km/h, Zeit UTC", () => {
+    const r = parseGeosphereSamples({ timestamps: ["2026-11-05T13:40+00:00"], features: [{ properties: { parameters: { FFX: { data: [10] }, DD: { data: [190] }, RF: { data: [50] }, TL: { data: [9] } } } }] });
+    expect(r[0]).toEqual({ t: "2026-11-05T13:40:00.000Z", g: 36, dir: 190, rh: 50, ta: 9 });
+    expect(parseGeosphereSamples({})).toEqual([]);
   });
 });

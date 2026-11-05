@@ -207,9 +207,9 @@ export function liveFoehnEvents(nowMs = Date.now()) {
   if (!samples || !FOEHN.live) return [];
   const since = nowMs - 12 * 3600e3, lvl = levelIdx(), out = [];
   const hhmm = t => new Date(t).toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Vienna" });
-  const finish = (lv, last, value, text) => {
+  const finish = (lv, last, value, text, kind = "tal") => {
     const active = nowMs - last <= HOLD_MS;
-    out.push({ lv: active ? lv : 1, base: lv, active, last, value: active ? value : `früher heute, ${hhmm(last)} Uhr`, text: active ? text : `Früher heute Föhn gemessen (${value}, ${hhmm(last)} Uhr). Ende nicht gesichert: Messstationen prüfen.` });
+    out.push({ kind, lv: active ? lv : 1, base: lv, active, last, value: active ? value : `früher heute, ${hhmm(last)} Uhr`, text: active ? text : `Früher heute Föhn gemessen (${value}, ${hhmm(last)} Uhr). Ende nicht gesichert: Messstationen prüfen.` });
   };
   for (const d of FOEHN.live) {
     const rows = id => (samples[`${d.src}:${id}`] || []).filter(r => { const t = +new Date(r.t); return t >= since && t <= nowMs + 900e3; });
@@ -217,7 +217,11 @@ export function liveFoehnEvents(nowMs = Date.now()) {
       const hits = rows(d.station).filter(r => r.g >= d.gust[lvl] && r.dir != null && inSector(r.dir, d.sector) && (d.rhMax == null || r.rh == null || r.rh < d.rhMax));
       if (!hits.length) continue;
       const peak = hits.reduce((a, b) => (b.g > a.g ? b : a)), last = Math.max(...hits.map(r => +new Date(r.t)));
-      finish(2, last, `${d.name}: ${Math.round(peak.g)} km/h aus ${compassName(peak.dir)}`, `Föhn gemessen: ${d.name} bis ${Math.round(peak.g)} km/h aus ${compassName(peak.dir)}. Das gilt bis 3 Stunden nach der letzten Messung, auch wenn die Prognose ruhiger ist.`);
+      const windTxt = `${d.name} bis ${Math.round(peak.g)} km/h aus ${compassName(peak.dir)}`;
+      const hold = "Das gilt bis 3 Stunden nach der letzten Messung, auch wenn die Prognose ruhiger ist.";
+      finish(2, last, windTxt, d.kind === "kamm"
+        ? `Föhn am Kamm gemessen: ${windTxt}. Das Tal kann noch ruhig sein, am Start kann es schon strömen. ${hold}`
+        : `Föhn im Tal gemessen: ${windTxt}. ${hold}`, d.kind);
     } else if (d.type === "split") {
       const B = Object.fromEntries(rows(d.b).map(r => [r.t, r]));
       const hits = rows(d.a).filter(r => { const o = B[r.t]; return o && r.dir != null && inSector(r.dir, d.sector) && r.rh != null && r.rh < d.rhMax && r.ta != null && o.ta != null && r.ta - o.ta >= d.dT; });
@@ -225,7 +229,7 @@ export function liveFoehnEvents(nowMs = Date.now()) {
       finish(lvl <= 1 ? 2 : 1, Math.max(...hits.map(r => +new Date(r.t))), `${d.nameA} warm, ${d.nameB} kalt`, `${d.nameA} warm und trocken, ${d.nameB} kalt: Föhn liegt über dem Kaltluftsee, Durchbruch jederzeit möglich.`);
     }
   }
-  return out.sort((a, b) => b.lv - a.lv || b.last - a.last);
+  return out.sort((a, b) => b.lv - a.lv || (a.kind === "kamm") - (b.kind === "kamm") || b.last - a.last);
 }
 function applyLiveFoehn(hours) {
   if (isSim()) return;
@@ -238,8 +242,8 @@ function applyLiveFoehn(hours) {
     let best = null;
     for (const e of evs) {
       const held = h.t <= localKey(new Date(e.last + HOLD_MS));
-      const cand = held ? { lv: e.base, value: e.value } : (lvl <= 1 && h.day === today ? { lv: 1, value: "Früher heute Föhn gemessen" } : null);
-      if (cand && (!best || cand.lv > best.lv)) best = cand;
+      const cand = held ? { lv: e.base, value: e.value, kind: e.kind } : (lvl <= 1 && h.day === today ? { lv: 1, value: "Früher heute Föhn gemessen" } : null);
+      if (cand && (!best || cand.lv > best.lv || (cand.lv === best.lv && best.kind === "kamm" && cand.kind !== "kamm"))) best = cand;
     }
     if (best) h.foehnLive = best;
   });
@@ -315,7 +319,7 @@ export function scoreHour(hr, site) {
     }
   }
   // Föhn gemessen: verschärft nur, gilt laufende Stunde plus 3 h
-  if (hr.foehnLive) push("foehnLive", "Föhn gemessen", hr.foehnLive.lv, hr.foehnLive.value, "Messung", 3, true);
+  if (hr.foehnLive) push("foehnLive", hr.foehnLive.kind === "kamm" ? "Föhn am Kamm gemessen" : "Föhn gemessen", hr.foehnLive.lv, hr.foehnLive.value, "Messung", 3, true);
   // Gegenlage: starker Stau auf der anderen Seite
   if (hr.foehn != null && hr.foehn <= -4) push("stau", FOEHN.negName + " (Stau)", 1, fmt(hr.foehn, "hPa"), "≤ −4", 1);
   // Sicht, Gewitter im Modell, Front (Druckanstieg)
@@ -425,7 +429,7 @@ export function motto(level, day, future) {
   return ({ foehn: "Föhn! Heute am Boden bleiben.", rain: "Regen. Der Schirm bleibt trocken.", cloud: "Start steckt in den Wolken.",
     gust: "Zu böig. Groundhandling statt Flug.", spread: "Zu böig. Groundhandling statt Flug.", windLaunch: "Zu viel Wind am Start.",
     dir: "Wind von der falschen Seite.", cape: "Gewittergefahr. Lieber am Boden.", li: "Gewittergefahr. Lieber am Boden.",
-    closed: "Bahn oder Startplatz zu.", dark: "Zu wenig Tageslicht.", foehnLive: "Föhn gemessen! Am Boden bleiben.", landFog: future.some(h => h.score.grades.landFog === 2 && !h.score.grades.vis && h.score.reasons.every(r => r.level !== 2 || r.key === "landFog")) ? "Start frei, Landeplatz im Nebel." : "Nebel am Landeplatz.", front: "Front zieht durch.", vis: "Schlechte Sicht.", wx: "Gewittergefahr. Lieber am Boden.", w850: "Starker Wind in der Höhe.", w700: "Starker Höhenwind." })[top && top[0]] || "Bodentag. Zeit für Groundhandling.";
+    closed: "Bahn oder Startplatz zu.", dark: "Zu wenig Tageslicht.", foehnLive: future.some(h => h.score.grades.foehnLive === 2 && h.foehnLive?.kind !== "kamm") ? "Föhn gemessen! Am Boden bleiben." : "Föhn am Kamm! Am Boden bleiben.", landFog: future.some(h => h.score.grades.landFog === 2 && !h.score.grades.vis && h.score.reasons.every(r => r.level !== 2 || r.key === "landFog")) ? "Start frei, Landeplatz im Nebel." : "Nebel am Landeplatz.", front: "Front zieht durch.", vis: "Schlechte Sicht.", wx: "Gewittergefahr. Lieber am Boden.", w850: "Starker Wind in der Höhe.", w700: "Starker Höhenwind." })[top && top[0]] || "Bodentag. Zeit für Groundhandling.";
 }
 export function buildBriefing(s, ev, day) {
   const nowKey = isSim() ? "" : nowLocalKey();
@@ -440,7 +444,7 @@ export function buildBriefing(s, ev, day) {
   const fl = isSim() ? null : liveFoehnEvents()[0];
   // Lage
   let lage = [];
-  if (fl) lage.push(fl.active ? "Föhn gemessen" : "früher heute Föhn gemessen");
+  if (fl) lage.push(!fl.active ? "früher heute Föhn gemessen" : fl.kind === "kamm" ? "Föhn am Kamm gemessen" : "Föhn gemessen");
   if (fMax != null && fMax >= L.foehn.r) lage.push(`${F.posName} mit bis zu ${fMax.toLocaleString("de-AT")} hPa (${F.primary.label}) ab etwa ${fPeak.hour} Uhr`);
   else if (fMax != null && fMax >= L.foehn.g) lage.push(`${F.posName}-Signal im Druck (${fMax.toLocaleString("de-AT")} hPa)`);
   else if (fMin != null && fMin <= -L.foehn.r) lage.push(`${F.negName}`);

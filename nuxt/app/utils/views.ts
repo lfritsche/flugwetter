@@ -26,7 +26,7 @@ export function renderStations() {
     else if (inDir && br.ffx >= 15) flag = `<div class="flag warn"><b>Beobachten:</b> ${ws.dirLabel} in ${ws.name} mit ${Math.round(br.ffx)} km/h Böen.</div>`;
   }
   const lives = isSim() ? [] : liveFoehnEvents();
-  flag = lives.map(e => `<div class="flag ${e.lv === 2 ? "stop" : "warn"}"><b>${e.lv === 2 ? "Am Boden bleiben." : "Föhnzeichen."}</b> ${e.text}</div>`).join("") + flag
+  flag = lives.map(e => `<div class="flag ${e.lv === 2 ? "stop" : "warn"}"><b>${e.lv === 2 ? "Am Boden bleiben." : "Föhnzeichen."}</b> ${e.text}</div>`).join("") + (lives.length ? "" : flag)
     + (L.foehnFailed?.length ? `<div class="flag warn"><b>Föhnmessung nicht verfügbar</b> (${L.foehnFailed.length} Quelle${L.foehnFailed.length > 1 ? "n" : ""}). Eine ruhige Ampel beruht nur auf der Prognose.</div>` : "");
   const fog = isSim() ? null : liveFogCheck();
   const pct = v => v == null ? "–" : Math.round(v * 100) + " %";

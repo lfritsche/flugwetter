@@ -223,6 +223,20 @@ describe("Föhn gemessen", () => {
     expect(run({ "ms:CHU": [{ t, dir: 175, rh: 36, ta: 18 }], "ms:RAG": [{ t, ta: 7 }] })[0].value).toContain("Chur warm");
     expect(run({ "ms:CHU": [{ t, dir: 175, rh: 70, ta: 18 }], "ms:RAG": [{ t, ta: 7 }] })).toEqual([]);
   });
+  it("Kamm und Tal getrennt: Tal hat Vorrang im Text", () => {
+    const RR = { ...R, foehn: { ...R.foehn, live: [
+      { type: "gust", kind: "kamm", src: "slf", station: "K", name: "Spitz", sector: [150, 240], gust: [50, 50, 60, 80] },
+      { type: "gust", kind: "tal", src: "geo", station: "T", name: "Brand", sector: [150, 240], gust: [25, 25, 35, 40] },
+    ] } };
+    const S = defaultSettings(R.SITES); S.limits = presetLimits(0, makeParams(R.foehn));
+    const go = s => { setCtx({ S, DATA: { live: { foehnSamples: s } }, R: RR }); return liveFoehnEvents(now); };
+    const kamm = go({ "slf:K": [{ t: iso(10), g: 100, dir: 190 }] });
+    expect(kamm[0].kind).toBe("kamm");
+    expect(kamm[0].text).toContain("Tal kann noch ruhig sein");
+    const beide = go({ "slf:K": [{ t: iso(10), g: 100, dir: 190 }], "geo:T": [{ t: iso(40), g: 30, dir: 190 }] });
+    expect(beide[0].kind).toBe("tal");
+    expect(beide[0].text).toContain("Föhn im Tal gemessen");
+  });
   it("Lücke: keine Änderung", () => {
     expect(run({})).toEqual([]);
   });

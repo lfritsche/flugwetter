@@ -189,7 +189,16 @@ export function parseMsNow(text) {
   const L = text.trim().split(/\r?\n/), H = L[0].split(";"), i = k => H.indexOf(k);
   return L.slice(1).map(l => { const c = l.split(";"); return { t: new Date(msTime(c[i("reference_timestamp")])).toISOString(), g: num(c[i("fu3010z1")]), dir: num(c[i("dkl010z0")]), rh: num(c[i("ure200s0")]), ta: num(c[i("tre200s0")]) }; });
 }
+export function parseGeosphereSamples(d) {
+  const p = d.features?.[0]?.properties?.parameters || {}, arr = k => p[k]?.data || [];
+  return (d.timestamps || []).map((t, i) => ({ t: new Date(t).toISOString(), g: arr("FFX")[i] == null ? null : arr("FFX")[i] * 3.6, dir: arr("DD")[i] ?? null, rh: arr("RF")[i] ?? null, ta: arr("TL")[i] ?? null }));
+}
 const SAMPLERS = {
+  geosphere: async id => {
+    const iso = ms => new Date(ms).toISOString().slice(0, 16);
+    const q = new URLSearchParams({ parameters: "DD,FFX,RF,TL", station_ids: id, start: iso(Date.now() - 12 * 3600e3), end: iso(Date.now()) });
+    return parseGeosphereSamples(await getJSON(`https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min?${q}`, 1));
+  },
   slf: async id => parseSlf(await getJSON(`https://measurement-api.slf.ch/public/api/imis/station/${id}/measurements`, 1)),
   meteoswiss: async id => { const a = id.toLowerCase(); return parseMsNow(await getText(`${MS}/${a}/ogd-smn_${a}_t_now.csv`)); },
   suedtirol: async id => {

@@ -21,8 +21,8 @@ const REGION = {
     secondary: { label: "Bozen − Innsbruck (Südföhn)", a: { lat: 46.50, lon: 11.35 }, b: { lat: 47.26, lon: 11.39 } },
     mode: "nord", sector: [300, 60],   // Rot ab 3 hPa: Landeswetterdienst nennt Durchbruch in hauptkammnahen Tälern ab ca. 3 hPa
     live: [
-      { type: "gust", src: "suedtirol", station: "37100MS", name: "Sterzing", sector: [300, 60], gust: [40, 40, 50, 60], rhMax: 60 },
-      { type: "gust", src: "suedtirol", station: "45100WS", name: "Regelspitze (2747 m)", sector: [270, 60], gust: [60, 60, 70, 80] },
+      { type: "gust", kind: "tal", src: "suedtirol", station: "37100MS", name: "Sterzing", sector: [300, 60], gust: [40, 40, 50, 60], rhMax: 60 },
+      { type: "gust", kind: "kamm", src: "suedtirol", station: "45100WS", name: "Regelspitze (2747 m)", sector: [270, 60], gust: [60, 60, 70, 80] },
     ],
     posName: "Nordföhn", negName: "Südströmung",
     explain: "Positiv = Nordföhn, der Hauptfeind im Pustertal. Achtung: Das Föhndiagramm des Landeswetterdienstes zeigt Bozen − Innsbruck, dort ist Nordföhn negativ.",

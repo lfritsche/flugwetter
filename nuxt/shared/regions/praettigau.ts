@@ -24,9 +24,9 @@ const REGION = {
     explain: "Positiv = Südüberdruck. Im Prättigau gibt es keine Föhn-Messstation, Chur und die Kammstationen dienen als Ersatz.",
     warnStation: { id: "CHU", name: "Chur", sector: [150, 210], dirLabel: "Südwind", note: "Chur ist bei Föhn oft warm und trocken, auch wenn das Tal nebenan noch kalt ist." },
     live: [
-      { type: "gust", src: "slf", station: "MLB1", name: "Spitz (2186 m)", sector: [150, 240], gust: [50, 50, 60, 80] },
-      { type: "gust", src: "meteoswiss", station: "WFJ", name: "Weissfluhjoch (2691 m)", sector: [140, 240], gust: [50, 50, 60, 80] },
-      { type: "gust", src: "meteoswiss", station: "PMA", name: "Piz Martegnas (2668 m)", sector: [140, 240], gust: [50, 50, 60, 80] },
+      { type: "gust", kind: "kamm", src: "slf", station: "MLB1", name: "Spitz (2186 m)", sector: [150, 240], gust: [50, 50, 60, 80] },
+      { type: "gust", kind: "kamm", src: "meteoswiss", station: "WFJ", name: "Weissfluhjoch (2691 m)", sector: [140, 240], gust: [50, 50, 60, 80] },
+      { type: "gust", kind: "kamm", src: "meteoswiss", station: "PMA", name: "Piz Martegnas (2668 m)", sector: [140, 240], gust: [50, 50, 60, 80] },
       { type: "split", src: "meteoswiss", a: "CHU", b: "RAG", nameA: "Chur", nameB: "Bad Ragaz", sector: [120, 220], rhMax: 55, dT: 3 },
     ],
   },
