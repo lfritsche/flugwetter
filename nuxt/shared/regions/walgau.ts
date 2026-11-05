@@ -11,7 +11,7 @@ const REGION = {
   storeKey: "flugwetter.settings.v2",
   brand: 'Flugwetter <span>Walgau</span>',
   bg: "/img/walgau.jpg",
-  credits: "Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), GeoSphere Austria, Holfuy, walgauwetter.at, <a href=\"https://www.slf.ch\" target=\"_blank\" rel=\"noopener\">WSL-Institut für Schnee- und Lawinenforschung SLF</a>. Hintergrund: Anton Repponen, „Paraglider in orange clouds“ (CC0, via Wikimedia Commons).",
+  credits: "Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), GeoSphere Austria, Holfuy, walgauwetter.at, <a href=\"https://www.slf.ch\" target=\"_blank\" rel=\"noopener\">WSL-Institut für Schnee- und Lawinenforschung SLF</a>. Hintergrund: <a href=\"https://commons.wikimedia.org/wiki/File:Flims_3660_45.jpg\" target=\"_blank\" rel=\"noopener\">GF-wmch, CC BY-SA 4.0, via Wikimedia Commons</a>.",
   stationProvider: "geosphere",
   stationLabel: "GeoSphere",
   areaName: "Walgau",

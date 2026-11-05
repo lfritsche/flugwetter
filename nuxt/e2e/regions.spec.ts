@@ -29,14 +29,14 @@ test("Umschalter wechselt die Region samt Daten", async ({ page }) => {
   await expect(page.locator('.regions a[aria-current="page"]')).toHaveText("Pustertal");
 
   await page.locator(".regions").getByRole("link", { name: "Walgau" }).click();
-  await expect(page).toHaveURL(/\/walgau$/);
+  await expect(page).toHaveURL(/\/walgau\/hensler/);
   await expect(page.locator("h1")).toContainText("Walgau");
   await expect(page.getByRole("tab", { name: "Hensler" })).toBeVisible();
   await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.regions a[aria-current="page"]')).toHaveText("Walgau");
 
   await page.locator(".regions").getByRole("link", { name: "Prättigau" }).click();
-  await expect(page).toHaveURL(/\/praettigau$/);
+  await expect(page).toHaveURL(/\/praettigau\/fanas/);
   await expect(page.getByRole("tab", { name: "Vilan" })).toBeVisible();
   await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
 
@@ -84,4 +84,26 @@ test("Prättigau: Startplatz mit mehreren Starts wählt einen passenden Start", 
     await expect(page.locator(".hero .eyebrow")).toContainText(name);
   }
   expect(errors).toEqual([]);
+});
+
+test("Adresse: Startplatz im Pfad, Level als Parameter", async ({ page }) => {
+  await page.goto("/walgau");
+  await expect(page).toHaveURL(/\/walgau\/hensler\?level=anfaenger$/);
+
+  await page.getByRole("tab", { name: /^Bazora/ }).click();
+  await expect(page).toHaveURL(/\/walgau\/bazora\?level=anfaenger$/);
+  await page.locator('input[aria-label="Pilotenlevel"]').fill("2");
+  await expect(page).toHaveURL(/\/walgau\/bazora\?level=erfahren$/);
+
+  // Deep Link, Level wird beim Regionswechsel mitgenommen
+  await page.goto("/pustertal/kronplatz?level=experte");
+  await expect(page.getByRole("tab", { name: /^Kronplatz/ })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".level-top b")).toHaveText("Experte");
+  await page.locator(".regions").getByRole("link", { name: "Prättigau" }).click();
+  await expect(page).toHaveURL(/\/praettigau\/[a-z]+\?level=experte$/);
+
+  // Unbekannter Startplatz fällt zurück, unbekannter Level wird ignoriert
+  await page.goto("/walgau/gibtsnicht?level=quatsch");
+  await expect(page).toHaveURL(/\/walgau\/[a-z]+\?level=/);
+  await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
 });

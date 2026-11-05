@@ -11,8 +11,8 @@ const REGION = {
   storeKey: "flugwetter.praettigau.v1",
   brand: 'Flugwetter <span>Prättigau</span>',
   areaName: "Prättigau",
-  bg: "/img/walgau.jpg",
-  credits: 'Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), Quelle: MeteoSchweiz, Holfuy, <a href="https://www.slf.ch" target="_blank" rel="noopener">WSL-Institut für Schnee- und Lawinenforschung SLF</a>. Hintergrund: Anton Repponen, „Paraglider in orange clouds“ (CC0, via Wikimedia Commons).',
+  bg: "/img/praettigau.jpg",
+  credits: 'Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), Quelle: MeteoSchweiz, Holfuy, <a href="https://www.slf.ch" target="_blank" rel="noopener">WSL-Institut für Schnee- und Lawinenforschung SLF</a>. Hintergrund: <a href="https://commons.wikimedia.org/wiki/File:Blick_Richtung_Seewis_-_panoramio.jpg" target="_blank" rel="noopener">qwesy qwesy, CC BY 3.0, via Wikimedia Commons</a>.',
   stationProvider: "meteoswiss",
   stationLabel: "MeteoSchweiz",
   foehn: {

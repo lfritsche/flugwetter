@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { setCtx, evaluateSite, dirPick, grade, foehnGrade, liveFoehnEvents, landFogGrade, liveFogCheck } from "#shared/engine";
-import { defaultSettings, presetLimits, makeParams } from "#shared/config";
+import { defaultSettings, presetLimits, makeParams, levelFromSlug } from "#shared/config";
 import { hourRanges, localKey } from "#shared/format";
 
 /* Synthetische Region: ein Südstartplatz (Sektor 160–240) und ein Gipfel mit zwei Starts */
@@ -307,5 +307,14 @@ describe("Nebel: Review 2", () => {
     const sc = scoreAt(D => { D.fc.south.land.visibility_icon_d2 = HOURS.map((_, h) => (h === 12 ? 100 : 30000)); });
     expect(sc.grades.buffer).toBe(1);
     expect(sc.level).toBe(1);
+  });
+});
+
+describe("URL-Level", () => {
+  it("Namen, Grossschreibung, Unsinn", () => {
+    expect(levelFromSlug("erfahren")).toBe(2);
+    expect(levelFromSlug("EXPERTE")).toBe(3);
+    expect(levelFromSlug("quatsch")).toBeNull();
+    expect(levelFromSlug(undefined)).toBeNull();
   });
 });

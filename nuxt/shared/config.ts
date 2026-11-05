@@ -36,6 +36,12 @@ export const LEVELS = [
   { name: "Experte", desc: "Viel Erfahrung, aktives Fliegen in starker Luft. Föhn bleibt auch hier ein Ausschlussgrund.",
     v: { windLaunch: [22, 30], gust: [30, 38], spread: [15, 22], windLand: [22, 32], w850: [30, 40], w700: [45, 55], foehn: [3, 5], cape: [800, 1500], li: [-1, -3], cloud: [200, 50], rain: [0.2, 1], blh: [3500, 4500] } },
 ];
+/* URL-Parameter ?level= */
+export const LEVEL_SLUGS = ["anfaenger", "fortgeschritten", "erfahren", "experte"];
+export function levelFromSlug(v) {
+  const i = LEVEL_SLUGS.indexOf(String(v ?? "").toLowerCase());
+  return i >= 0 ? i : null;
+}
 export const EXTRA_DEFS = [
   { key: "calmWind",    label: "Unter diesem Wind ist die Richtung egal", unit: "km/h", v: 6 },
   { key: "dirTol",      label: "Toleranz am Sektorrand (ohne Holfuy-Sektor)", unit: "°", v: 20 },
