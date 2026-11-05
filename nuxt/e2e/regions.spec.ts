@@ -47,3 +47,21 @@ test("Keine seitliche Scrollbar am Handy", async ({ page }) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test("API-Abrufe umgehen den Browser-Cache", async ({ page, context }) => {
+  await page.goto("/pustertal");
+  await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
+
+  // Zweiter Besuch: der Browser muss beim Server nachfragen, statt aus seinem Cache zu antworten
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("Network.enable");
+  const sent: string[] = [];
+  cdp.on("Network.requestWillBeSentExtraInfo", (e: any) => {
+    const h = Object.fromEntries(Object.entries(e.headers).map(([k, v]) => [k.toLowerCase(), String(v)]));
+    if ((h[":path"] ?? "").includes("/api/region/")) sent.push(h["cache-control"] ?? "-");
+  });
+  await page.reload();
+  await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
+  expect(sent.length).toBeGreaterThan(0);                 // Anfrage ging wirklich ans Netz
+  expect(sent.every(v => /no-cache|max-age=0/.test(v))).toBe(true);
+});

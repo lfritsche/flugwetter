@@ -7,6 +7,8 @@ import { setCtx, evaluateSite, activeData } from "#shared/engine";
 
 const BA_KEY = "flugwetter.burnair";
 const safe = (f, fb = null) => { try { return f(); } catch { return fb; } };
+// Immer beim Server nachfragen (ETag): der Server cacht selbst, der Browser-Cache darf keine alten Prognosen liefern
+const api = (url, opts = {}) => $fetch(url, { cache: "no-cache", ...opts });
 
 export function useDashboard(regionId: string) {
   const R = REGIONS[regionId];
@@ -59,7 +61,7 @@ export function useDashboard(regionId: string) {
   if (!burnairEnabled) safe(() => localStorage.removeItem(BA_KEY));
   watch(BA, a => safe(() => a ? localStorage.setItem(BA_KEY, JSON.stringify(a)) : localStorage.removeItem(BA_KEY)));
   async function burnairLogin(username, password) {
-    const d = await $fetch("/api/burnair/login", { method: "POST", body: { username, password } }).catch(e => { throw new Error(e?.data?.statusMessage || "Login fehlgeschlagen"); });
+    const d = await api("/api/burnair/login", { method: "POST", body: { username, password } }).catch(e => { throw new Error(e?.data?.statusMessage || "Login fehlgeschlagen"); });
     BA.value = { token: d.token, exp: Date.now() + Math.max(60, (d.expiresIn || 3600) - 60) * 1000, name: d.name || username };
     await fetchAll();
   }
@@ -67,7 +69,7 @@ export function useDashboard(regionId: string) {
   async function fetchBurnair(days) {
     if (!BA.value) return null;
     try {
-      return await $fetch(`/api/burnair/forecast?region=${regionId}&days=${Math.min(days, 3)}`, { headers: { Authorization: BA.value.token } });
+      return await api(`/api/burnair/forecast?region=${regionId}&days=${Math.min(days, 3)}`, { headers: { Authorization: BA.value.token } });
     } catch (e) {
       if (e?.statusCode === 401) burnairLogout();
       throw new Error(e?.data?.statusMessage || "Burnair nicht erreichbar");
@@ -80,7 +82,7 @@ export function useDashboard(regionId: string) {
     ["fc", "foehn", "live", "hist", "burnair"].forEach(k => delete DATA.errors[k]);
     const days = S.mode === "week" ? 7 : 3;
     const [reg, live, ba] = await Promise.allSettled([
-      $fetch(`/api/region/${regionId}?days=${days}`), $fetch(`/api/live/${regionId}`), fetchBurnair(days),
+      api(`/api/region/${regionId}?days=${days}`), api(`/api/live/${regionId}`), fetchBurnair(days),
     ]);
     if (reg.status === "fulfilled") {
       Object.assign(DATA, { fc: reg.value.fc ?? null, foehn: reg.value.foehn ?? null, hist: reg.value.hist ?? null });
@@ -95,7 +97,7 @@ export function useDashboard(regionId: string) {
   async function fetchSim() {
     simLoading.value = true; delete DATA.errors.sim; SEL.touched = false;
     try {
-      const d = await $fetch(`/api/sim/${regionId}?days=${S.extra.simDays}`);
+      const d = await api(`/api/sim/${regionId}?days=${S.extra.simDays}`);
       Object.assign(DATA, { simFc: d.fc, simFoehn: d.foehn ?? null, simHist: d.hist ?? null });
       if (d.errors?.foehn) DATA.errors.sim = "Föhn: " + d.errors.foehn;
     } catch (e) { DATA.errors.sim = e?.data?.statusMessage || e.message; }
