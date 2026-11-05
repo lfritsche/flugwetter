@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // @ts-nocheck
-import { LEVELS, MODES, FLIGHTS, XC } from "#shared/config";
+import { LEVELS, LEVEL_SLUGS, MODES, FLIGHTS, XC } from "#shared/config";
 const D = useDash();
 const S = D.S;
 const custom = computed(() => S.level === "custom");
@@ -8,11 +8,31 @@ const idx = computed(() => custom.value ? S.levelBase : S.level);
 const L = computed(() => LEVELS[idx.value]);
 const F = D.R.foehn;
 const lvlIdx = computed(() => idx.value);
-const ownName = computed(() => { const v = D.visit.value; return !v ? "" : v.level === "custom" ? "Eigene Werte" : LEVELS[v.level].name; });
+const emit = defineEmits<{ settings: [] }>();
+// Adresse teilen: nur dieser Link trägt das Level, die normale Adresse nicht
+const copied = ref(false);
+async function shareLevel() {
+  try {
+    await navigator.clipboard.writeText(`${location.origin}${location.pathname}?level=${LEVEL_SLUGS[idx.value]}`);
+    copied.value = true; setTimeout(() => { copied.value = false; }, 2000);
+  } catch {}
+}
+const open = ref(false), root = ref<HTMLElement | null>(null);
+const summary = computed(() => [custom.value ? "Eigene Werte" : L.value.name, FLIGHTS[S.flight].short, MODES[S.mode].label.replace("Live ", "")]);
+const onDown = e => { if (open.value && !root.value?.contains(e.target)) open.value = false; };
+const onKey = e => { if (e.key === "Escape") open.value = false; };
+onMounted(() => { document.addEventListener("pointerdown", onDown); document.addEventListener("keydown", onKey); });
+onUnmounted(() => { document.removeEventListener("pointerdown", onDown); document.removeEventListener("keydown", onKey); });
 </script>
 
 <template>
-  <section class="controls">
+  <section ref="root" class="controls">
+    <button type="button" class="ctl-chip" :class="{ sim: S.mode === 'sim' }" :aria-expanded="open" aria-controls="ctl-panel" aria-label="Einstellungen" @click="open = !open">
+      <svg class="ctl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg>
+      <span class="ctl-sum"><template v-for="(x, i) in summary" :key="i"><i v-if="i">·</i><b v-if="!i">{{ x }}</b><template v-else>{{ x }}</template></template></span>
+      <svg class="ctl-caret" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4 L6 8.5 L10 4" /></svg>
+    </button>
+    <div v-show="open" id="ctl-panel" class="ctl-panel">
     <div class="seg" role="group" aria-label="Ansicht">
       <button v-for="(m, k) in MODES" :key="k" type="button" :data-mode="k" :aria-pressed="S.mode === k" @click="D.setMode(k)">{{ m.label }}</button>
     </div>
@@ -26,10 +46,6 @@ const ownName = computed(() => { const v = D.visit.value; return !v ? "" : v.lev
       </div>
       <input type="range" min="0" max="3" step="1" :value="idx" aria-label="Pilotenlevel" :aria-valuetext="L.name" @input="D.setLevel(+($event.target as HTMLInputElement).value)">
       <div class="level-ticks"><span v-for="(l, i) in LEVELS" :key="i" :class="{ on: i === idx }">{{ l.name }}</span></div>
-    </div>
-    <div v-if="D.visit.value" class="flag warn">
-      <b>Level aus dem Link: {{ L.name }}.</b> Dein eigenes ist {{ ownName }}. Wird nicht gespeichert.
-      <button type="button" class="btn" style="display:block;margin-top:6px" @click="D.restoreOwnLevel()">{{ ownName }} verwenden</button>
     </div>
     <details class="explain">
       <summary>Welche Werte gelten gerade?</summary>
@@ -67,5 +83,10 @@ const ownName = computed(() => { const v = D.visit.value; return !v ? "" : v.lev
         </ul>
       </div>
     </details>
+    <div class="btn-row">
+      <button v-if="!custom" type="button" class="btn" @click="shareLevel">{{ copied ? "Link kopiert" : "Link mit diesem Level kopieren" }}</button>
+      <button type="button" class="btn" @click="open = false; emit('settings')">Weitere Einstellungen</button>
+    </div>
+    </div>
   </section>
 </template>

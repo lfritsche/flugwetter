@@ -3,6 +3,14 @@ import { test, expect, type Page } from "@playwright/test";
 // Holfuy sperrt die IP dieser Maschine nach automatischen Zugriffen, deshalb hier nie anfragen
 test.beforeEach(async ({ page }) => { await page.route(/holfuy/, r => r.abort()); });
 
+async function goRegion(page: Page, name: string) {
+  await page.locator(".deck-title button").click();
+  await page.locator(".regions").getByRole("link", { name }).click();
+}
+async function openControls(page: Page) {
+  await page.locator(".ctl-chip").click();
+}
+
 function trackErrors(page: Page) {
   const errors: string[] = [];
   page.on("pageerror", e => errors.push(e.message));
@@ -29,21 +37,21 @@ test("Umschalter wechselt die Region samt Daten", async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto("/pustertal");
   await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('.regions a[aria-current="page"]')).toHaveText("Pustertal");
+  await expect(page.locator('.regions a[aria-current="page"] .rname')).toHaveText("Pustertal");
 
-  await page.locator(".regions").getByRole("link", { name: "Walgau" }).click();
+  await goRegion(page, "Walgau");
   await expect(page).toHaveURL(/\/walgau\/hensler/);
   await expect(page.locator("h1")).toContainText("Walgau");
   await expect(page.getByRole("tab", { name: "Hensler" })).toBeVisible();
   await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('.regions a[aria-current="page"]')).toHaveText("Walgau");
+  await expect(page.locator('.regions a[aria-current="page"] .rname')).toHaveText("Walgau");
 
-  await page.locator(".regions").getByRole("link", { name: "Prättigau" }).click();
+  await goRegion(page, "Prättigau");
   await expect(page).toHaveURL(/\/praettigau\/fanas/);
   await expect(page.getByRole("tab", { name: "Vilan" })).toBeVisible();
   await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
 
-  await page.locator(".regions").getByRole("link", { name: "Pustertal" }).click();
+  await goRegion(page, "Pustertal");
   await expect(page.getByRole("tab", { name: "Ahornach" })).toBeVisible();
   await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
   expect(errors).toEqual([]);
@@ -91,48 +99,62 @@ test("Prättigau: Startplatz mit mehreren Starts wählt einen passenden Start", 
 
 test("Adresse: Startplatz im Pfad, Level als Parameter", async ({ page }) => {
   await page.goto("/walgau");
-  await expect(page).toHaveURL(/\/walgau\/hensler\?level=anfaenger$/);
+  await expect(page).toHaveURL(/\/walgau\/hensler$/);
 
   await page.getByRole("tab", { name: /^Bazora/ }).click();
-  await expect(page).toHaveURL(/\/walgau\/bazora\?level=anfaenger$/);
+  await expect(page).toHaveURL(/\/walgau\/bazora$/);
+  await openControls(page);
   await page.locator('input[aria-label="Pilotenlevel"]').fill("2");
-  await expect(page).toHaveURL(/\/walgau\/bazora\?level=erfahren$/);
+  await expect(page.locator(".level-top b")).toHaveText("Erfahren");
+  await expect(page).toHaveURL(/\/walgau\/bazora$/);
 
   // Deep Link, Level wird beim Regionswechsel mitgenommen
   await page.goto("/pustertal/kronplatz?level=experte");
   await expect(page.getByRole("tab", { name: /^Kronplatz/ })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".level-top b")).toHaveText("Experte");
-  await page.locator(".regions").getByRole("link", { name: "Prättigau" }).click();
+  await goRegion(page, "Prättigau");
   await expect(page).toHaveURL(/\/praettigau\/[a-z]+\?level=experte$/);
 
   // Unbekannter Startplatz fällt zurück, unbekannter Level wird ignoriert
   await page.goto("/walgau/gibtsnicht?level=quatsch");
-  await expect(page).toHaveURL(/\/walgau\/[a-z]+\?level=/);
+  await expect(page).toHaveURL(/\/walgau\/[a-z]+$/);
   await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
 });
 
 test("Level aus dem Link wird nicht gespeichert", async ({ page }) => {
   await page.goto("/walgau/hensler?level=experte");
   await expect(page.locator(".level-top b")).toHaveText("Experte");
-  await expect(page.locator(".controls .flag")).toContainText("Dein eigenes ist Anfänger");
+  await expect(page.locator(".visit-flag")).toContainText("Dein eigenes ist Anfänger");
 
   // Neuer Besuch ohne Parameter: wieder das eigene Level
   await page.goto("/walgau/hensler");
   await expect(page.locator(".level-top b")).toHaveText("Anfänger");
-  await expect(page.locator(".controls .flag")).toHaveCount(0);
+  await expect(page.locator(".visit-flag")).toHaveCount(0);
 
   // Zurück auf eigenes Level per Knopf
   await page.goto("/walgau/hensler?level=erfahren");
-  await page.locator(".controls .flag button").click();
+  await page.locator(".visit-flag button").click();
   await expect(page.locator(".level-top b")).toHaveText("Anfänger");
-  await expect(page).toHaveURL(/level=anfaenger$/);
+  await expect(page).toHaveURL(/\/walgau\/hensler$/);
 
   // Selbst am Regler ändern speichert
   await page.goto("/walgau/hensler?level=experte");
+  await openControls(page);
   await page.locator('input[aria-label="Pilotenlevel"]').fill("1");
-  await expect(page.locator(".controls .flag")).toHaveCount(0);
+  await expect(page.locator(".visit-flag")).toHaveCount(0);
   await page.goto("/walgau/hensler");
   await expect(page.locator(".level-top b")).toHaveText("Fortgeschritten");
+
+  // Eigenes Level kommt nicht in die Adresse, Neuladen zeigt keinen Hinweis
+  await expect(page).toHaveURL(/\/walgau\/hensler$/);
+  await page.reload();
+  await expect(page.locator(".level-top b")).toHaveText("Fortgeschritten");
+  await expect(page.locator(".visit-flag")).toHaveCount(0);
+
+  // Alter Link mit dem eigenen Level: kein Hinweis, Parameter verschwindet
+  await page.goto("/walgau/hensler?level=fortgeschritten");
+  await expect(page.locator(".visit-flag")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/walgau\/hensler$/);
 });
 
 test("Handy: Karte erst auf Knopfdruck, Ebenen schlank", async ({ page }) => {

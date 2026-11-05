@@ -23,13 +23,13 @@ function fromUrl() {
 }
 fromUrl();
 watch(() => [route.params.site, route.query.level], fromUrl);
-// Zustand → URL. Eigene Grenzwerte haben keinen Level-Parameter.
+// Zustand → URL. Das eigene Level steht nie in der Adresse, sonst wirkt jede alte Adresse wie ein fremder Link.
 function toUrl() {
-  const level = D.S.level === "custom" ? undefined : LEVEL_SLUGS[D.S.level];
+  const level = D.visit.value ? LEVEL_SLUGS[D.S.level] : undefined;
   const path = `/${id}/${D.S.tab}`;
   if (route.path !== path || route.query.level !== level) router.replace({ path, query: { ...route.query, level } });
 }
-watch(() => [D.S.tab, D.S.level], toUrl);
+watch(() => [D.S.tab, D.S.level, D.visit.value], toUrl);
 toUrl();
 onMounted(() => {
   try { localStorage.setItem("flugwetter.region", id); } catch {}
@@ -46,11 +46,10 @@ onUnmounted(() => document.removeEventListener("visibilitychange", onVisible));
 <template>
   <div class="wrap" :class="{ wide: isDesktop }">
     <TopBar @settings="settings?.open()" />
-    <RegionSwitch />
+    <VisitFlag />
+    <SiteTabs />
     <div class="cols">
       <div class="col-main">
-        <ControlsPanel />
-        <SiteTabs />
         <HeroPanel />
         <HourTable />
         <ModuleList />
