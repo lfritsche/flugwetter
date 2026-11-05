@@ -244,7 +244,7 @@ describe("Föhn gemessen", () => {
     const S = defaultSettings(R.SITES); S.limits = presetLimits(0, makeParams(R.foehn)); S.tab = "south";
     const NOW = localKey(new Date()), T = Array.from({ length: 12 }, (_, i) => localKey(new Date(now + i * 3600e3)));
     const mk = () => { const H = { time: T }; for (const k of ["wind_speed_10m", "wind_gusts_10m", "wind_direction_10m"]) H[`${k}_icon_d2`] = T.map(() => (k.includes("dir") ? 200 : 5)); return H; };
-    const DATA = { fc: { south: { launch: mk(), land: mk() } }, foehn: null, hist: {}, live: { foehnSamples: { "slf:X1": [{ t: iso(5), g: 70, dir: 190 }] } } };
+    const DATA = { fc: { south: { launch: mk(), land: mk() } }, foehn: null, hist: {}, live: { foehnSamples: { "slf:X1": [{ t: iso(0), g: 70, dir: 190 }] } } };
     setCtx({ S, DATA, R, SEL: { dayIdx: 0, hour: null }, EVAL: {} });
     const H = evaluateSite(R.SITES[0]).hours;
     expect(H.find(h => h.t === NOW).score.grades.foehnLive).toBe(2);

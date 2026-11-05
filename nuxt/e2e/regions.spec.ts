@@ -1,5 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
+// Holfuy sperrt die IP dieser Maschine nach automatischen Zugriffen, deshalb hier nie anfragen
+test.beforeEach(async ({ page }) => { await page.route(/holfuy/, r => r.abort()); });
+
 function trackErrors(page: Page) {
   const errors: string[] = [];
   page.on("pageerror", e => errors.push(e.message));
@@ -130,4 +133,26 @@ test("Level aus dem Link wird nicht gespeichert", async ({ page }) => {
   await expect(page.locator(".controls .flag")).toHaveCount(0);
   await page.goto("/walgau/hensler");
   await expect(page.locator(".level-top b")).toHaveText("Fortgeschritten");
+});
+
+test("Handy: Karte erst auf Knopfdruck, Ebenen schlank", async ({ page }) => {
+  await page.goto("/walgau/hensler");
+  await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "3D-Karte laden" })).toBeVisible();
+  await expect(page.locator(".col-side")).toHaveCount(0);
+});
+
+test("Desktop: Karte lädt selbst neben der Tabelle, alle Ebenen, Zeitregler wirkt", async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto("/praettigau/fanas");
+  await expect(page.locator(".col-side .map-layers")).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator(".map-layers")).toContainText("Sperrzonen");
+  await expect(page.locator(".map-layers")).toContainText("Windfeld");
+  const slider = page.locator('input[aria-label="Stunde auf der Karte"]');
+  await slider.fill("12");
+  await expect(page.locator(".map-time .tltime")).toHaveText("12:00");
+  await expect(page.locator(".htable .c.sel").first()).toBeVisible();   // gleiche Stunde in der Tabelle
+  await expect(page.locator(".map-card .flag").first()).toContainText("Gleitpfad 12 Uhr");
+  expect(errors).toEqual([]);
 });

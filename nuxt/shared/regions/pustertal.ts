@@ -12,7 +12,7 @@ const REGION = {
   brand: 'Flugwetter <span>Pustertal</span>',
   areaName: "Pustertal",
   bg: "/img/pustertal.jpg",
-  credits: 'Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), Landeswetterdienst Südtirol, foto-webcam.eu, Panomax, Kronplatz. Hintergrund: <a href="https://commons.wikimedia.org/wiki/File:Schenna_(IT),_Paraglider_am_Hirzer_--_2026_--_3679.jpg" target="_blank" rel="noopener">Dietmar Rabich, CC BY-SA 4.0, via Wikimedia Commons</a>.',
+  credits: 'Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), Landeswetterdienst Südtirol, foto-webcam.eu, Panomax, Kronplatz, © OpenStreetMap-Mitwirkende. Hintergrund: <a href="https://commons.wikimedia.org/wiki/File:Schenna_(IT),_Paraglider_am_Hirzer_--_2026_--_3679.jpg" target="_blank" rel="noopener">Dietmar Rabich, CC BY-SA 4.0, via Wikimedia Commons</a>.',
   stationProvider: "suedtirol",
   stationLabel: "Landeswetterdienst Südtirol",
   foehn: {
@@ -140,15 +140,15 @@ const REGION = {
   ],
   // Landeswetterdienst Südtirol (WG/WG.BOE in m/s, WR in °)
   STATIONS: [
-    { id: "45100WS", name: "Regelspitze", elev: 2747, role: "Gsies Gipfel · Nordföhn-Warnung" },
-    { id: "45200SF", name: "Pfinnalm", elev: 2152, role: "Gsies, Höhe der Spielalm" },
-    { id: "44500MS", name: "St. Magdalena", elev: 1412, role: "Gsies Talschluss" },
-    { id: "43200MS", name: "Welsberg", elev: 1131, role: "Pustertal" },
-    { id: "59700MS", name: "Bruneck", elev: 828, role: "Talwind Reischach" },
-    { id: "56900MS", name: "Sand-Mühlen", elev: 851, role: "Landeplatz Ahornach" },
-    { id: "53200SF", name: "Fadner Alm", elev: 2155, role: "Höhe Ahrntal / Speikboden" },
-    { id: "41000MS", name: "Toblach", elev: 1219, role: "Hochpustertal" },
-    { id: "65600MS", name: "Terenten", elev: 1349, role: "Messung für Pfalzen" },
+    { id: "45100WS", lat: 46.8561, lon: 12.2005, name: "Regelspitze", elev: 2747, role: "Gsies Gipfel · Nordföhn-Warnung" },
+    { id: "45200SF", lat: 46.8417, lon: 12.2096, name: "Pfinnalm", elev: 2152, role: "Gsies, Höhe der Spielalm" },
+    { id: "44500MS", lat: 46.8353, lon: 12.2427, name: "St. Magdalena", elev: 1412, role: "Gsies Talschluss" },
+    { id: "43200MS", lat: 46.7431, lon: 12.1289, name: "Welsberg", elev: 1131, role: "Pustertal" },
+    { id: "59700MS", lat: 46.8043, lon: 11.9315, name: "Bruneck", elev: 828, role: "Talwind Reischach" },
+    { id: "56900MS", lat: 46.9003, lon: 11.9474, name: "Sand-Mühlen", elev: 851, role: "Landeplatz Ahornach" },
+    { id: "53200SF", lat: 46.9256, lon: 11.8614, name: "Fadner Alm", elev: 2155, role: "Höhe Ahrntal / Speikboden" },
+    { id: "41000MS", lat: 46.7299, lon: 12.2191, name: "Toblach", elev: 1219, role: "Hochpustertal" },
+    { id: "65600MS", lat: 46.8345, lon: 11.7856, name: "Terenten", elev: 1349, role: "Messung für Pfalzen" },
   ],
   LINKS: [
     { t: "Föhndiagramm Südtirol", d: "Bozen − Innsbruck, Nordföhn = negativ", u: "https://weather.provinz.bz.it/foehn-chart.asp" },

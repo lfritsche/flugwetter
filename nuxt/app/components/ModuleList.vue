@@ -11,7 +11,9 @@ const REG = {
   profile: { render: renderProfile }, history: { render: renderHistory }, foehn: { render: () => renderFoehn() },
   aloft: { render: renderAloft }, site: { render: renderSiteInfo }, links: { render: renderLinks },
 };
-const list = computed(() => D.S.order.filter(id => D.S.modules[id] && REG[id]));
+const { isDesktop } = useDevice();
+// Am Desktop steht die Karte in der eigenen Spalte
+const list = computed(() => D.S.order.filter(id => D.S.modules[id] && REG[id] && !(id === "map3d" && isDesktop.value)));
 </script>
 
 <template>

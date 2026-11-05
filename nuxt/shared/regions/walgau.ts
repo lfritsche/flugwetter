@@ -11,7 +11,7 @@ const REGION = {
   storeKey: "flugwetter.settings.v2",
   brand: 'Flugwetter <span>Walgau</span>',
   bg: "/img/walgau.jpg",
-  credits: "Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), GeoSphere Austria, Holfuy, walgauwetter.at, <a href=\"https://www.slf.ch\" target=\"_blank\" rel=\"noopener\">WSL-Institut für Schnee- und Lawinenforschung SLF</a>. Hintergrund: <a href=\"https://commons.wikimedia.org/wiki/File:Flims_3660_45.jpg\" target=\"_blank\" rel=\"noopener\">GF-wmch, CC BY-SA 4.0, via Wikimedia Commons</a>.",
+  credits: "Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), GeoSphere Austria, Holfuy, walgauwetter.at, © OpenStreetMap-Mitwirkende, <a href=\"https://www.slf.ch\" target=\"_blank\" rel=\"noopener\">WSL-Institut für Schnee- und Lawinenforschung SLF</a>. Hintergrund: <a href=\"https://commons.wikimedia.org/wiki/File:Flims_3660_45.jpg\" target=\"_blank\" rel=\"noopener\">GF-wmch, CC BY-SA 4.0, via Wikimedia Commons</a>.",
   stationProvider: "geosphere",
   stationLabel: "GeoSphere",
   areaName: "Walgau",
@@ -98,11 +98,11 @@ const REGION = {
 
   // GeoSphere TAWES (10-min, FF/FFX in m/s)
   STATIONS: [
-  { id: "11304", name: "Brand", elev: 1029, role: "Föhn-Frühwarnung" },
-  { id: "11099", name: "Bludenz", elev: 571, role: "Walgau Ost" },
-  { id: "11105", name: "Feldkirch", elev: 438, role: "Walgau West" },
-  { id: "11104", name: "Fraxern", elev: 807, role: "Rheintal-Seite" },
-  { id: "11251", name: "Laterns / Gapfohl", elev: 1559, role: "Höhe (liefert oft keine Daten)" },
+  { id: "11304", lat: 47.1031, lon: 9.7383, name: "Brand", elev: 1029, role: "Föhn-Frühwarnung" },
+  { id: "11099", lat: 47.1478, lon: 9.8294, name: "Bludenz", elev: 571, role: "Walgau Ost" },
+  { id: "11105", lat: 47.2711, lon: 9.6097, name: "Feldkirch", elev: 438, role: "Walgau West" },
+  { id: "11104", lat: 47.3142, lon: 9.6744, name: "Fraxern", elev: 807, role: "Rheintal-Seite" },
+  { id: "11251", lat: 47.275, lon: 9.76, name: "Laterns / Gapfohl", elev: 1559, role: "Höhe (liefert oft keine Daten)" },
 ],
   LINKS: [
   { t: "FCA Wetterinfo", d: "Linksammlung der Flugschule", u: "https://www.flugschulearlberg.at/wetterinfo" },

@@ -10,6 +10,7 @@ const id = String(route.params.region);
 if (!REGIONS[id]) throw createError({ statusCode: 404, statusMessage: "Region nicht gefunden" });
 const D = useDashboard(id);
 const settings = ref();
+const { isDesktop } = useDevice();
 const siteName = computed(() => D.R.SITES.find(s => s.id === D.S.tab)?.name);
 useHead({ title: () => `${siteName.value} · Flugwetter ${D.R.areaName}` });
 
@@ -43,14 +44,19 @@ onUnmounted(() => document.removeEventListener("visibilitychange", onVisible));
 </script>
 
 <template>
-  <div class="wrap">
+  <div class="wrap" :class="{ wide: isDesktop }">
     <TopBar @settings="settings?.open()" />
     <RegionSwitch />
-    <ControlsPanel />
-    <SiteTabs />
-    <HeroPanel />
-    <HourTable />
-    <ModuleList />
+    <div class="cols">
+      <div class="col-main">
+        <ControlsPanel />
+        <SiteTabs />
+        <HeroPanel />
+        <HourTable />
+        <ModuleList />
+      </div>
+      <aside v-if="isDesktop" class="col-side"><ModulesMap3dModule /></aside>
+    </div>
     <footer>
       Vorauswahl aus Wettermodellen. Ersetzt nicht den Blick auf Live-Wind, Himmel und die Einschätzung deines Fluglehrers.
       <span v-html="D.R.credits" />
