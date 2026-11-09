@@ -78,7 +78,7 @@ onUnmounted(() => { document.removeEventListener("pointerdown", onDown); documen
           <li><b>Böigkeit</b> zählt erst, wenn die Böen über {{ S.limits.gust.g }} km/h liegen.</li>
           <li><b>Richtung:</b> optimaler Sektor grün, fliegbarer Sektor gelb, sonst rot. Unter {{ S.extra.calmWind }} km/h zählt die Richtung nicht. Bei mehreren Startplätzen gilt der passendste.</li>
           <li><b>Föhn:</b> {{ F.combine === "max" ? `das Maximum aus ${F.primary.label} und ${F.secondary.label}` : `Druckdifferenz ${F.primary.label}` }}. Rot auch schon bei wenig Druck (ab 1 hPa, beim Anfänger), wenn der Höhenwind auf 3000 m von der Föhnseite ab 25 km/h kommt, oder bei steigendem Druck ab 3 hPa. Gemessener Föhn macht rot bis 3 Stunden nach der letzten Messung, danach für Anfänger gelb bis Tagesende. {{ F.explain }} Grün heißt nur: kein Föhnsignal im Modell.</li>
-          <li>Pro Wert zählt das schlechtere Modell von ICON-D2 und ICON-CH2. Wo ICON-D2 fehlt (ab ca. Tag 3, im 7-Tage-Modus ICON-EU/ECMWF), sind Stunden schraffiert.</li>
+          <li>Pro Wert zählt das schlechtere Modell von ICON-D2 und ICON-CH2, bei den Böen ab Erfahren der Mittelwert beider (weniger falscher Alarm, aber mehr übersehene starke Böen). Wo ICON-D2 fehlt (ab ca. Tag 3, im 7-Tage-Modus ICON-EU/ECMWF), sind Stunden schraffiert.</li>
           <li><b>Rückblick:</b> echte vergangene Modellläufe (Open-Meteo Historical Forecast), bewertet mit deinen aktuellen Grenzwerten.</li>
         </ul>
       </div>

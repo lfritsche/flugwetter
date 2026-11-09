@@ -383,3 +383,17 @@ describe("Review 8.11.: falscher Alarm an Inversionstagen", () => {
     expect(at(H, 11).score.level).toBe(1);
   });
 });
+
+describe("Böen nach Level (Analyse 60 Tage)", () => {
+  function runSplit(level) {
+    const S = defaultSettings(R.SITES);
+    S.level = level; S.levelBase = level; S.limits = presetLimits(level, makeParams(R.foehn)); S.tab = "south";
+    const D = makeData(() => ({ ws: 10 }));
+    for (const s of R.SITES) { D.fc[s.id].launch["wind_gusts_10m_icon_d2"] = HOURS.map(() => 16); D.fc[s.id].launch["wind_gusts_10m_meteoswiss_icon_ch2"] = HOURS.map(() => 40); }
+    setCtx({ S, DATA: D, R, SEL: { dayIdx: 1, hour: null }, EVAL: {} });
+    return at(evaluateSite(R.SITES[0]).hours.filter(h => h.day === DAY), 13);
+  }
+  it("Anfänger: schlechteres Modell zählt", () => { expect(runSplit(0).gust).toBe(40); });
+  it("Fortgeschritten: schlechteres Modell zählt", () => { expect(runSplit(1).gust).toBe(40); });
+  it("ab Erfahren: Mittel aus ICON-D2 und ICON-CH2", () => { expect(runSplit(2).gust).toBe(28); });
+});

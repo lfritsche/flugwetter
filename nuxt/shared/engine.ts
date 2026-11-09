@@ -116,7 +116,11 @@ export function buildHours(site, fc, foehn, hist) {
     const fine = wD2 != null || wCH != null;
     const wEU = at(L, "wind_speed_10m", "icon_eu", i), wEC = at(L, "wind_speed_10m", "ecmwf_ifs025", i);
     let windLaunch = fine ? mx(wD2, wCH) : mx(wEU, wEC);
-    let gust = fine ? mx(gD2, gCH) : mx(at(L, "wind_gusts_10m", "icon_eu", i), at(L, "wind_gusts_10m", "ecmwf_ifs025", i));
+    // Böen: bis Fortgeschritten das schlechtere Modell, ab Erfahren das Mittel. Analyse 60 Tage, 16 Stationen: Mittel halbiert
+    // den falschen Alarm, verpasst aber mehr echte starke Böen (Hang: 52 statt 32 %). Deshalb nur für erfahrene Piloten.
+    const avg = (a, b) => a == null ? b : b == null ? a : (a + b) / 2;
+    const comb = levelIdx() >= 2 ? avg : mx;
+    let gust = fine ? comb(gD2, gCH) : comb(at(L, "wind_gusts_10m", "icon_eu", i), at(L, "wind_gusts_10m", "ecmwf_ifs025", i));
     let dir;
     if (fine) dir = (wD2 != null && (wCH == null || wD2 >= wCH)) ? at(L, "wind_direction_10m", "icon_d2", i) : at(L, "wind_direction_10m", "meteoswiss_icon_ch2", i);
     else dir = at(L, "wind_direction_10m", "icon_eu", i) ?? at(L, "wind_direction_10m", "ecmwf_ifs025", i);
