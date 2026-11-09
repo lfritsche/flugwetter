@@ -3,7 +3,7 @@
 import { REGIONS } from "#shared/regions";
 import { setCtx, evaluateSite } from "#shared/engine";
 import { defaultSettings, presetLimits, makeParams } from "#shared/config";
-import { fetchForecast, fetchFoehn, PROVIDERS, OM_LIVE, MODELS_LIVE } from "../../utils/weather";
+import { fetchForecast, fetchFoehn, liveAll, OM_LIVE, MODELS_LIVE } from "../../utils/weather";
 
 export default defineTask({
   meta: { name: "notify:morning", description: "Grüne Fenster der nächsten 3 Tage ermitteln" },
@@ -13,7 +13,7 @@ export default defineTask({
       const { data, errors } = await settle({
         fc: fetchForecast(R, OM_LIVE, { past_days: "1", forecast_days: "3" }, MODELS_LIVE),
         foehn: fetchFoehn(R, OM_LIVE, { forecast_days: "3" }),
-        live: PROVIDERS[R.stationProvider].live(R),
+        live: liveAll(R),
       });
       if (!data.fc) { summary[id] = { error: errors.fc }; continue; }
       const S = defaultSettings(R.SITES);

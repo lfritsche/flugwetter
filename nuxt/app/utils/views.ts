@@ -33,7 +33,8 @@ export function renderStations() {
   const fogRow = rs => rs.map(r => `${r.name} ${pct(r.sun)} Sonne, ${r.rh == null ? "–" : Math.round(r.rh)} % Feuchte`).join(" · ");
   const fogBox = fog ? `<div class="flag ${fog.active ? "warn" : ""}"><b>Nebel-Check:</b> ${fog.active ? "Unten kaum Sonne bei hoher Feuchte, oben Sonne: Hochnebel möglich. Webcam am Landeplatz prüfen." : "Kein Hinweis aus den Stationen."}<br><span class="hint">Tal: ${fogRow(fog.low)}<br>Höhe: ${fogRow(fog.high)}</span></div>` : "";
   const t = L.ts ? new Date(L.ts).toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" }) : "";
-  return `<div class="label">Messstationen ${R.stationLabel} · ${t} Uhr</div><div class="stations">${rows}</div>${flag}${fogBox}`;
+  const failed = L.failed?.length ? `<div class="flag warn"><b>Keine Messwerte von ${L.failed.join(", ")}.</b> Diese Stationen fehlen gerade.</div>` : "";
+  return `<div class="label">Messstationen ${R.stationLabel} · ${t} Uhr</div><div class="stations">${rows}</div>${failed}${flag}${fogBox}`;
 }
 
 export function renderHistory(s) {

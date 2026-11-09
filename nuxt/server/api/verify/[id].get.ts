@@ -1,5 +1,5 @@
 // Modell-Trefferquote: Böen von ICON-D2 und ICON-CH2 am Ort der Stationen gegen die Messung, letzte 14 Tage, 6 h gecacht
-import { getJSON, PROVIDERS } from "../../utils/weather";
+import { getJSON, historyAll } from "../../utils/weather";
 import { dateStr } from "#shared/format";
 import { verifyStation, VERIFY } from "#shared/verify";
 
@@ -20,7 +20,7 @@ export default defineCachedEventHandler(async (event) => {
       if (r?.hourly?.time) model[chunk[j].id] = { time: r.hourly.time, d2: r.hourly.wind_gusts_10m_icon_d2 || [], ch2: r.hourly.wind_gusts_10m_meteoswiss_icon_ch2 || [] };
     });
   }
-  const hist = await PROVIDERS[R.stationProvider].history(R, (DAYS + 1) * 24, st.map(s => s.id), true);
+  const hist = await historyAll(R, (DAYS + 1) * 24, st.map(s => s.id), true);
   const stations = st.map(s => ({ id: s.id, name: s.name, elev: s.elev, role: s.role, ...((model[s.id] && verifyStation(model[s.id], hist[s.id])) ?? { n: 0 }) }));
   return { days: DAYS, hours: [VERIFY.fromHour, VERIFY.toHour], stations, fetchedAt: new Date().toISOString() };
 }, {

@@ -1,5 +1,5 @@
 // Rückblick: vergangene Modellläufe (Open-Meteo Historical Forecast) + Stationsverlauf, 6 Stunden gecacht
-import { fetchForecast, fetchFoehn, PROVIDERS, OM_HIST, MODELS_SIM } from "../../utils/weather";
+import { fetchForecast, fetchFoehn, historyAll, OM_HIST, MODELS_SIM } from "../../utils/weather";
 import { dateStr } from "#shared/format";
 
 export default defineCachedEventHandler(async (event) => {
@@ -10,7 +10,7 @@ export default defineCachedEventHandler(async (event) => {
   const { data, errors } = await settle({
     fc: fetchForecast(R, OM_HIST, range, MODELS_SIM),
     foehn: fetchFoehn(R, OM_HIST, range),
-    hist: PROVIDERS[R.stationProvider].history(R, (n + 2) * 24),
+    hist: historyAll(R, (n + 2) * 24),
   });
   if (!data.fc) throw createError({ statusCode: 502, statusMessage: errors.fc || "Rückblick nicht verfügbar" });
   return { ...data, errors, days: n, fetchedAt: new Date().toISOString() };

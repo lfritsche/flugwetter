@@ -1,5 +1,5 @@
 // Prognose, Föhn und Stationsverlauf einer Region, 10 Minuten gecacht
-import { fetchForecast, fetchFoehn, PROVIDERS, OM_LIVE, MODELS_LIVE } from "../../utils/weather";
+import { fetchForecast, fetchFoehn, historyAll, OM_LIVE, MODELS_LIVE } from "../../utils/weather";
 
 export default defineCachedEventHandler(async (event) => {
   const R = getRegion(getRouterParam(event, "id"));
@@ -7,7 +7,7 @@ export default defineCachedEventHandler(async (event) => {
   const { data, errors } = await settle({
     fc: fetchForecast(R, OM_LIVE, { past_days: "1", forecast_days: String(days) }, MODELS_LIVE),
     foehn: fetchFoehn(R, OM_LIVE, { forecast_days: String(days) }),
-    hist: PROVIDERS[R.stationProvider].history(R, 36),
+    hist: historyAll(R, 36),
   });
   // Ohne Prognose nichts cachen: Fehler geht an den Client, der nächste Abruf versucht es neu
   if (!data.fc) throw createError({ statusCode: 502, statusMessage: errors.fc || "Prognose nicht verfügbar" });

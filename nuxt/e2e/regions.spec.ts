@@ -17,7 +17,7 @@ function trackErrors(page: Page) {
   return errors;
 }
 
-for (const [id, area, site] of [["pustertal", "Pustertal", "Ahornach"], ["walgau", "Walgau", "Hensler"], ["praettigau", "Prättigau", "Fanas"]]) {
+for (const [id, area, site] of [["pustertal", "Pustertal", "Ahornach"], ["walgau", "Walgau", "Hensler"], ["praettigau", "Prättigau", "Fanas"], ["liechtenstein", "Liechtenstein", "Bargella"]]) {
   test(`${area} zeigt aktuelle Daten`, async ({ page, request }) => {
     const errors = trackErrors(page);
     const api = await (await request.get(`/api/region/${id}?days=3`)).json();
@@ -186,4 +186,12 @@ test("Modell-Check: Böen-Vergleich je Station", async ({ page, request }) => {
   await page.goto("/walgau/hensler");
   await page.locator(".verify").scrollIntoViewIfNeeded();
   await expect(page.locator(".verify-row").first()).toBeVisible({ timeout: 60_000 });
+});
+
+test("Liechtenstein: zwei Stationsnetze, Bazora auch hier", async ({ page, request }) => {
+  const live = await (await request.get("/api/live/liechtenstein")).json();
+  expect(Object.keys(live.st)).toEqual(expect.arrayContaining(["VAD", "11105"]));
+  await page.goto("/liechtenstein/bazora");
+  await expect(page.getByRole("tab", { name: /^Bazora/ })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".daycard").first()).toBeVisible({ timeout: 30_000 });
 });

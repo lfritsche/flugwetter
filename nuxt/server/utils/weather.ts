@@ -219,6 +219,32 @@ PROVIDERS.meteoswiss = {
   },
 };
 
+/* Mehrere Stationsnetze pro Region: Station.provider überschreibt R.stationProvider (z. B. Liechtenstein + Vorarlberg).
+   Fällt ein Netz aus, liefern die anderen weiter; nur wenn alle ausfallen, gibt es einen Fehler. */
+const provOf = (R, id) => R.STATIONS.find(s => s.id === id)?.provider || R.stationProvider;
+const PROV_NAME = { geosphere: "GeoSphere", meteoswiss: "MeteoSchweiz", suedtirol: "Südtirol" };
+async function byProvider(R, ids, run) {
+  const groups = {};
+  ids.forEach(id => (groups[provOf(R, id)] ||= []).push(id));
+  const names = Object.keys(groups);
+  const unknown = names.find(p => !PROVIDERS[p]);
+  if (unknown) throw new Error("Unbekanntes Stationsnetz: " + unknown);
+  const res = await Promise.allSettled(names.map(p => run(PROVIDERS[p], groups[p])));
+  if (res.length && res.every(r => r.status === "rejected")) throw res[0].reason;
+  return { parts: res.filter(r => r.status === "fulfilled").map(r => r.value), failed: names.filter((_, i) => res[i].status === "rejected").map(p => PROV_NAME[p] || p) };
+}
+export async function liveAll(R) {
+  const { parts, failed } = await byProvider(R, R.STATIONS.map(s => s.id), (P, g) => P.live({ ...R, STATIONS: R.STATIONS.filter(s => g.includes(s.id)) }));
+  // Zeitstempel: der älteste Stand, damit ein hängendes Netz nicht hinter einem frischen verschwindet
+  const out = { ts: null, st: {}, failed };
+  for (const p of parts) { Object.assign(out.st, p.st); if (p.ts && (!out.ts || new Date(p.ts) < new Date(out.ts))) out.ts = p.ts; }
+  return out;
+}
+export async function historyAll(R, hoursBack, ids = histIds(R), lite = false) {
+  const { parts } = await byProvider(R, ids, (P, g) => P.history(R, hoursBack, g, lite));
+  return Object.assign({}, ...parts);
+}
+
 /* Föhn-Messsignale der letzten Stunden, roh je "src:id". Einzelne Ausfälle fallen still weg: Messung verschärft nur. */
 export function parseSlf(rows) {
   return rows.map(r => ({ t: r.measure_date, g: r.VW_30MIN_MAX == null ? null : r.VW_30MIN_MAX * 3.6, dir: r.DW_30MIN_MEAN, rh: r.RH_30MIN_MEAN, ta: r.TA_30MIN_MEAN }));
