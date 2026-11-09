@@ -2,7 +2,8 @@
 /* Region Liechtenstein / Drei Schwestern: Rheintal-Seite des Grats (Foppa, Bargella, Sareis) plus Bazora auf der Walgau-Seite.
    Quellen: Gleitschirmclub Vaduz (gleitschirmclubvaduz.li, Koordinaten Foppa/Bargella/Landeplatz), paragliding365 Fluggebiet 6032
    (Sareis, Triesen), SHV-Infotafel Vaduz (2019). Stand Recherche 9.11.2026. Burnair nicht verwendet.
-   Startrichtungen Foppa und Bargella sind aus dem Gelände abgeleitet und nicht bestätigt (Quellen nennen keine Grade).
+   Lage, Höhe und Startrichtungen von Foppa, Bargella und Sareis: Burnair (lokale Kopie vom 5.11.2026, auf Wunsch des Nutzers
+   einmalig von Hand übernommen; Startrichtungen dort als 45°-Felder: Foppa/Bargella SW und W, Sareis NW).
    Zwei Stationsnetze: MeteoSchweiz (Vaduz, Bad Ragaz, Chur) und GeoSphere Austria (Feldkirch, Fraxern, Brand, Laterns). */
 import walgau from "./walgau";
 
@@ -15,7 +16,7 @@ const REGION = {
   brand: 'Flugwetter <span>Liechtenstein</span>',
   areaName: "Liechtenstein",
   bg: "/img/dreischwestern.jpg",
-  credits: 'Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), Quelle: MeteoSchweiz, GeoSphere Austria, Holfuy, walgauwetter.at, Karten: geo.admin.ch (BAFU, BAZL), © OpenStreetMap-Mitwirkende, <a href="https://www.slf.ch" target="_blank" rel="noopener">WSL-Institut für Schnee- und Lawinenforschung SLF</a>. Startplätze: <a href="https://www.gleitschirmclubvaduz.li/fluggebiet/" target="_blank" rel="noopener">Gleitschirmclub Vaduz</a>, paragliding365. Hintergrund: <a href="https://commons.wikimedia.org/wiki/File:Drei_Schwestern_von_%C3%9Cbersaxen.jpg" target="_blank" rel="noopener">Reinhard Müller, CC BY-SA 3.0 AT, via Wikimedia Commons</a>.',
+  credits: 'Daten: Open-Meteo (ICON-D2, ICON-CH2, ICON-EU, ECMWF, GFS), Quelle: MeteoSchweiz, GeoSphere Austria, Holfuy, walgauwetter.at, Karten: geo.admin.ch (BAFU, BAZL), © OpenStreetMap-Mitwirkende, <a href="https://www.slf.ch" target="_blank" rel="noopener">WSL-Institut für Schnee- und Lawinenforschung SLF</a>. Startplätze: <a href="https://www.gleitschirmclubvaduz.li/fluggebiet/" target="_blank" rel="noopener">Gleitschirmclub Vaduz</a>, paragliding365, Burnair. Hintergrund: <a href="https://commons.wikimedia.org/wiki/File:Drei_Schwestern_von_%C3%9Cbersaxen.jpg" target="_blank" rel="noopener">Reinhard Müller, CC BY-SA 3.0 AT, via Wikimedia Commons</a>.',
   stationProvider: "meteoswiss",
   stationLabel: "MeteoSchweiz und GeoSphere",
   foehn: {
@@ -47,44 +48,39 @@ const REGION = {
   ],
   SITES: [
     {
-      id: "bargella", name: "Bargella", area: "Gaflei · Triesenberg", lat: 47.141483, lon: 9.548917, elev: 1654,
-      sector: [230, 290], sectorWide: [200, 310], sectorLabel: "SW–WNW (abgeleitet)", sectorSource: "aus dem Gelände abgeleitet, unbestätigt",
+      id: "bargella", name: "Bargella", area: "Gaflei · Triesenberg", lat: 47.14141, lon: 9.54896, elev: 1653,
+      sector: [210, 285], sectorWide: [200, 300], sectorLabel: "SW–W", sectorSource: "Burnair",
       landing: LANDING_VADUZ, historyStation: "VAD", measureStation: "VAD", measureRole: "landing", cams: [],
       notes: [
         "Bevorzugter Start bei Inversion und für Strecke (Gleitschirmclub Vaduz). Ca. 30 min Fussweg ab Gaflei, Bus 22.",
         "Im Sommer erzeugt der Talwind ein grosses Leegebiet direkt am Start, Rotor auch bei ruhig wirkender Station.",
         "Bei Bise Abwind oder Nordwind, sehr turbulent. Bei Föhn Flugverbot.",
-        "Startrichtung aus dem Gelände abgeleitet: vor dem ersten Flug beim Club bestätigen lassen.",
         "Landeplatz Vaduz: CHF 5 pro Tag (Twint oder Landekasse), Mitglieder GCV, Pizol und Werdenberg frei. Bei extremem Talwind Ausweichplatz Triesen.",
       ],
       rules: [{ type: "warnDates", ranges: [["01-01", "03-31"]], label: "Wildschutzzone 1.1.–31.3. nicht überfliegen" }],
     },
     {
-      id: "foppa", name: "Foppa", area: "Masescha · Triesenberg", lat: 47.137, lon: 9.542983, elev: 1355,
-      sector: [230, 290], sectorWide: [200, 310], sectorLabel: "SW–WNW (abgeleitet)", sectorSource: "aus dem Gelände abgeleitet, unbestätigt",
+      id: "foppa", name: "Foppa", area: "Masescha · Triesenberg", lat: 47.13713, lon: 9.54332, elev: 1370,
+      sector: [210, 285], sectorWide: [200, 300], sectorLabel: "SW–W", sectorSource: "Burnair",
       landing: LANDING_VADUZ, historyStation: "VAD", measureStation: "VAD", measureRole: "landing", cams: [],
       notes: [
         "Unterer Startplatz an der Strasse Masescha–Gaflei, steiler Wiesenhang: Start gelingt auch bei schwachem Aufwind.",
         "Bäume und Geländeübergang erzeugen Lee, der Rotor kann sehr heftig sein (Gleitschirmclub Vaduz).",
-        "Startrichtung aus dem Gelände abgeleitet: vor dem ersten Flug beim Club bestätigen lassen.",
         "Landeplatz Vaduz: CHF 5 pro Tag, Ausweichplatz Triesen bei extremem Talwind.",
       ],
       rules: [{ type: "warnDates", ranges: [["01-01", "03-31"]], label: "Wildschutzzone 1.1.–31.3. nicht überfliegen" }],
     },
     {
-      id: "sareis", name: "Sareis", area: "Malbun · Sesselbahn", lat: 47.102722, lon: 9.620278, elev: 2000,
-      sector: [270, 45], sectorLabel: "W · N (mehrere Starts)",
+      id: "sareis", name: "Sareis", area: "Malbun · Sesselbahn", lat: 47.10303, lon: 9.61945, elev: 1968,
+      // Burnair: NW. paragliding365 nennt zusätzlich W und N (Naturstarts) → W bis N höchstens gelb
+      sector: [292, 337], sectorWide: [270, 360], sectorLabel: "NW (W–N gelb)", sectorSource: "Burnair, paragliding365",
       guidedOnly: "Schwieriger Start (paragliding365), Landung Vaduz nur mit rund 700 m Überhöhung",
-      launches: [
-        { name: "West (Alpwiese)", short: "W", sector: [250, 300], sectorWide: [230, 320], sectorLabel: "W (Alpwiese Richtung Malbun)" },
-        { name: "Nord (Naturstart)", short: "N", sector: [320, 30], sectorWide: [300, 45], sectorLabel: "NW–NO, ca. 25 min zu Fuss" },
-      ],
       landing: { name: "Malbun (inoffiziell)", lat: 47.1015, lon: 9.6085, elev: 1600, approx: true },
       historyStation: "VAD", cams: [],
       notes: [
         "Sesselbahn ab Malbun mit Transportschalen, nur mit gültiger Lizenz und Versicherungsnachweis. Saison und Zeiten vorher prüfen.",
         "Wer die Thermik verpasst, landet in Malbun. Für Vaduz muss Sareis um rund 700 m überhöht werden.",
-        "Malbun ist kein offizieller Landeplatz; Lage hier ungefähr. Offiziell sind nur Vaduz und Triesen.",
+        "Malbun ist kein offizieller Landeplatz (weder Club noch Burnair führen ihn); Lage hier ungefähr. Offiziell sind nur Vaduz und Triesen.",
         "Bei Föhn Flugverbot. Bei Nord- und Ostwind liegt das Rheintal-Gelände im Lee.",
       ],
       rules: [],
