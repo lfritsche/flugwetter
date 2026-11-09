@@ -26,15 +26,16 @@ export function hourBuckets(samples) {   // samples: [{t: Date, dir, ff, ffx}]
   const buckets = {};
   samples.forEach(x => {
     const k = localKey(x.t);
-    const b = buckets[k] = buckets[k] || { u: 0, w: 0, s: 0, g: 0, n: 0, sun: 0, sn: 0 };
+    const b = buckets[k] = buckets[k] || { u: 0, w: 0, s: 0, g: null, n: 0, dn: 0, sun: 0, sn: 0 };
     if (x.sun != null) { b.sun += x.sun; b.sn++; }   // Sonnenanteil 0–1 je Messung
     if (x.ff == null) return;
-    const rad = (x.dir ?? 0) * Math.PI / 180;
-    b.u += Math.sin(rad) * x.ff; b.w += Math.cos(rad) * x.ff; b.s += x.ff; b.g = Math.max(b.g, x.ffx ?? 0); b.n++;
+    if (x.dir != null) { const rad = x.dir * Math.PI / 180; b.u += Math.sin(rad) * x.ff; b.w += Math.cos(rad) * x.ff; b.dn++; }
+    b.s += x.ff; b.n++;
+    if (x.ffx != null) b.g = b.g == null ? x.ffx : Math.max(b.g, x.ffx);   // fehlende Böe bleibt leer, nicht 0
   });
   const out = {};
   Object.entries(buckets).forEach(([k, b]) => out[k] = {
-    ...(b.n ? { ff: b.s / b.n, ffx: b.g, dir: (Math.atan2(b.u, b.w) * 180 / Math.PI + 360) % 360 } : {}),
+    ...(b.n ? { ff: b.s / b.n, ffx: b.g, dir: b.dn ? (Math.atan2(b.u, b.w) * 180 / Math.PI + 360) % 360 : null } : {}),
     ...(b.sn ? { sun: b.sun / b.sn } : {}),
   });
   return out;
@@ -111,7 +112,9 @@ export function buildHours(site, fc, foehn, hist) {
     .filter(s => s && s.elev >= site.elev - 300 && s.elev <= site.elev + 500 && (s.lat == null || site.lat == null || km(s, site) <= 25));
   return L.time.map((t, i) => {
     const wD2 = at(L, "wind_speed_10m", "icon_d2", i), wCH = at(L, "wind_speed_10m", "meteoswiss_icon_ch2", i);
-    const gD2 = at(L, "wind_gusts_10m", "icon_d2", i), gCH = at(L, "wind_gusts_10m", "meteoswiss_icon_ch2", i);
+    // Böen und Regen meldet Open-Meteo für die vorangehende Stunde. Stunde "13" heisst hier 13–14 Uhr, also Wert von 14 Uhr.
+    const n1 = i + 1;
+    const gD2 = at(L, "wind_gusts_10m", "icon_d2", n1), gCH = at(L, "wind_gusts_10m", "meteoswiss_icon_ch2", n1);
     // Hochauflösend zuerst (schlechterer Wert), danach Fallback auf ICON-EU / ECMWF
     const fine = wD2 != null || wCH != null;
     const wEU = at(L, "wind_speed_10m", "icon_eu", i), wEC = at(L, "wind_speed_10m", "ecmwf_ifs025", i);
@@ -120,7 +123,7 @@ export function buildHours(site, fc, foehn, hist) {
     // den falschen Alarm, verpasst aber mehr echte starke Böen (Hang: 52 statt 32 %). Deshalb nur für erfahrene Piloten.
     const avg = (a, b) => a == null ? b : b == null ? a : (a + b) / 2;
     const comb = levelIdx() >= 2 ? avg : mx;
-    let gust = fine ? comb(gD2, gCH) : comb(at(L, "wind_gusts_10m", "icon_eu", i), at(L, "wind_gusts_10m", "ecmwf_ifs025", i));
+    let gust = fine ? comb(gD2, gCH) : comb(at(L, "wind_gusts_10m", "icon_eu", n1), at(L, "wind_gusts_10m", "ecmwf_ifs025", n1));
     let dir;
     if (fine) dir = (wD2 != null && (wCH == null || wD2 >= wCH)) ? at(L, "wind_direction_10m", "icon_d2", i) : at(L, "wind_direction_10m", "meteoswiss_icon_ch2", i);
     else dir = at(L, "wind_direction_10m", "icon_eu", i) ?? at(L, "wind_direction_10m", "ecmwf_ifs025", i);
@@ -168,8 +171,10 @@ export function buildHours(site, fc, foehn, hist) {
       dirLand: at(G, "wind_direction_10m", "icon_d2", i) ?? at(G, "wind_direction_10m", "meteoswiss_icon_ch2", i) ?? at(G, "wind_direction_10m", "icon_eu", i),
       cape: mx(at(L, "cape", "icon_d2", i), at(L, "cape", "meteoswiss_icon_ch2", i)) ?? mx(at(L, "cape", "icon_eu", i), at(L, "cape", "ecmwf_ifs025", i), at(L, "cape", "gfs_seamless", i)),
       li: at(L, "lifted_index", "gfs_seamless", i),
-      rain: ba && ba.rain != null ? ba.rain : mx(at(L, "precipitation", "icon_d2", i), at(L, "precipitation", "meteoswiss_icon_ch2", i)) ?? mx(at(L, "precipitation", "icon_eu", i), at(L, "precipitation", "ecmwf_ifs025", i)),
+      rain: ba && ba.rain != null ? ba.rain : mx(at(L, "precipitation", "icon_d2", n1), at(L, "precipitation", "meteoswiss_icon_ch2", n1)) ?? mx(at(L, "precipitation", "icon_eu", n1), at(L, "precipitation", "ecmwf_ifs025", n1)),
       cloudBase, cloud: cloudBase == null ? null : Math.round(cloudBase - site.elev), sunMeas,
+      rhLaunch: at(L, "rh_launch", "icon_d2", i),
+      w80: at(L, "wind_speed_80m", "icon_d2", i), d80: at(L, "wind_direction_80m", "icon_d2", i),
       lowCloud: mx(at(L, "cloud_cover_low", "icon_d2", i), at(L, "cloud_cover_low", "meteoswiss_icon_ch2", i)),
       blh: ba && ba.blh != null ? ba.blh : at(L, "boundary_layer_height", "gfs_seamless", i),
       foehn: f ? (FOEHN.combine === "max" ? mx(f.bi, f.lz) : (f.bi ?? f.lz)) : null,
@@ -303,10 +308,12 @@ export function scoreHour(hr, site) {
     let lv = grade(v, lim, p.invert);
     let shown = v == null ? null : fmt(v, p.unit);
     if (p.key === "cloud" && lv != null && hr.lowCloud != null && hr.lowCloud >= 90 && v < lim.r) lv = 2;
-    // Start in Wolken nur rot, wenn ICON-D2 am Start auch schlechte Sicht oder Nebel sieht (8.11.: Wolken erfunden, volle Sonne)
-    // Gemessen wenig Sonne auf Starthöhe bestätigt die Wolken: dann bleibt es rot. Ohne Messung bleibt gelb, aber nie grün (key2).
+    // Start in Wolken nur rot, wenn ein zweites Signal es bestätigt: ICON-D2-Feuchte ≥ 95 % auf Starthöhe, schlechte Sicht/Nebel
+    // oder gemessen kaum Sonne. Sonst gelb, aber nie grün (key2). 8.11.: CH2 hat Wolken erfunden, gemessen volle Sonne.
     let key2 = p.key2;
-    if (p.key === "cloud" && lv === 2 && !(hr.fog || (hr.vis != null && hr.vis < 5000)) && !(hr.sunMeas && hr.sunMeas.frac < 0.25)) { lv = 1; key2 = true; }
+    if (p.key === "cloud" && lv === 2 && !(hr.fog || (hr.vis != null && hr.vis < 5000)) && !(hr.rhLaunch != null && hr.rhLaunch >= 95) && !(hr.sunMeas && hr.sunMeas.frac < 0.25)) { lv = 1; key2 = true; }
+    // Zweites Wolkensignal ohne tiefe CH2-Basis: ICON-D2 sieht Feuchte ≥ 90 % auf Starthöhe und tiefe Wolken ≥ 50 % → gelb
+    if (p.key === "cloud" && !lv && hr.rhLaunch != null && hr.rhLaunch >= 90 && (hr.lowCloud ?? 0) >= 50) { lv = 1; key2 = true; shown = `Feuchte am Start ${hr.rhLaunch} %`; }
     if (p.key === "cloud" && lv && hr.sunMeas && hr.sunMeas.frac >= 0.75) { lv = 0; shown = `Sonne gemessen (${hr.sunMeas.name})`; }
     // Hike & Fly: 700 hPa (~3000 m) liegt über der Flughöhe, starke Thermik nur Hinweis → höchstens gelb
     if (S.flight === "hf" && ((p.key === "w700" && site.elev < 1800) || p.key === "blh") && lv === 2) lv = 1;

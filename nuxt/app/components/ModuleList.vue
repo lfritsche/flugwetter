@@ -4,10 +4,11 @@
 import LiveModule from "./modules/LiveModule.vue";
 import Map3dModule from "./modules/Map3dModule.vue";
 import HtmlModule from "./modules/HtmlModule.vue";
+import VerifyModule from "./modules/VerifyModule.vue";
 import { renderProfile, renderHistory, renderFoehn, renderAloft, renderSiteInfo, renderLinks } from "~/utils/views";
 const D = useDash();
 const REG = {
-  live: { comp: LiveModule }, map3d: { comp: Map3dModule },
+  live: { comp: LiveModule }, map3d: { comp: Map3dModule }, verify: { comp: VerifyModule },
   profile: { render: renderProfile }, history: { render: renderHistory }, foehn: { render: () => renderFoehn() },
   aloft: { render: renderAloft }, site: { render: renderSiteInfo }, links: { render: renderLinks },
 };

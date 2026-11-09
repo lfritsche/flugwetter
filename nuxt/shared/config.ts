@@ -63,7 +63,7 @@ export const MODES = {
   week: { label: "7 Tage", days: 7 },
   sim:  { label: "Rückblick", days: null },
 };
-export const MODULE_IDS = ["live", "profile", "map3d", "history", "foehn", "aloft", "site", "links"];
+export const MODULE_IDS = ["live", "profile", "map3d", "history", "verify", "foehn", "aloft", "site", "links"];
 
 export function presetLimits(i, PARAMS = makeParams({ primary: { label: "" } })) {
   const out = {};

@@ -4,7 +4,7 @@
 import { LEVELS, EXTRA_DEFS, MODULE_IDS, presetLimits } from "#shared/config";
 const D = useDash();
 const dlg = ref<HTMLDialogElement | null>(null);
-const TITLES = { live: "Live am Start", profile: "Windprofil", map3d: "3D-Karte " + D.R.areaName, history: "Windverlauf", foehn: "Föhn-Barometer", aloft: "Höhenwind & Gewitter", site: "Startplatz-Info", links: "Links" };
+const TITLES = { live: "Live am Start", profile: "Windprofil", map3d: "3D-Karte " + D.R.areaName, history: "Windverlauf", verify: "Modell-Check", foehn: "Föhn-Barometer", aloft: "Höhenwind & Gewitter", site: "Startplatz-Info", links: "Links" };
 const form = reactive({ limits: JSON.parse(JSON.stringify(D.S.limits)), extra: { ...D.S.extra }, modules: { ...D.S.modules }, order: D.S.order.slice() as string[] });
 function open() {
   form.limits = JSON.parse(JSON.stringify(D.S.limits)); form.extra = { ...D.S.extra };

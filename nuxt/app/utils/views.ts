@@ -59,7 +59,7 @@ export function renderHistory(s) {
   const stationRow = day => H.map(hr => {
     const v = hist && hist[keyOf(day, hr)];
     if (!v) return `<div class="k"></div>`;
-    return `<div class="k v${grade(v.ffx, S.limits.gust) ?? 0}" title="${hr} Uhr: ${compassName(v.dir)} ${Math.round(v.ff)} km/h, Böe ${Math.round(v.ffx)}">${arrowSVG(v.dir)}</div>`;
+    return `<div class="k v${grade(v.ffx, S.limits.gust) ?? 0}" title="${hr} Uhr: ${v.dir == null ? "" : compassName(v.dir) + " "}${Math.round(v.ff)} km/h, Böe ${v.ffx == null ? "–" : Math.round(v.ffx)}">${arrowSVG(v.dir)}</div>`;
   }).join("");
   const windowText = day => {
     let best = null, cur = null;
@@ -196,6 +196,8 @@ export function renderProfile(s) {
   const levels = [
     { a: s.landing.elev, w: "windLand", d: "dirLand", lim: L.windLand, name: "Landung" },
     { a: s.elev, w: "windLaunch", d: "dir", lim: L.windLaunch, name: "Start" },
+    // Wind 80 m über Grund (nur ICON-D2): reine Info, zählt nicht für die Ampel (Analyse: nicht besser als 10 m)
+    ...(H.some(h => h.w80 != null) ? [{ a: s.elev + 80, w: "w80", d: "d80", lim: L.windLaunch, name: "80 m (Info)" }] : []),
     { a: 1500, w: "w850", d: "d850", lim: L.w850, name: "850 hPa" },
     { a: 3000, w: "w700", d: "d700", lim: L.w700, name: "700 hPa" },
   ].sort((p, q) => p.a - q.a);

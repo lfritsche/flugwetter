@@ -34,16 +34,45 @@ export async function fetchForecast(R, base, range, models) {
     elevation: pts.map(p => p.elev).join(","),
     hourly: HOURLY, daily: "sunrise,sunset", models, timezone: "Europe/Vienna", ...range,
   });
-  const arr = await getJSON(base + q);
+  const [arr, prof] = await Promise.all([getJSON(base + q), fetchLaunchProfile(SITES, base, range).catch(() => null)]);
   const out = {};
   SITES.forEach((s, i) => {
     const dly = arr[i * 2].daily || {}, sun = {};
     // Modell-Suffixe bei daily: erstes vorhandenes Feld nehmen
     const pick = k => dly[k] || dly[Object.keys(dly).find(x => x.startsWith(k + "_"))] || [];
     (dly.time || []).forEach((d, j) => { const r = pick("sunrise")[j], t = pick("sunset")[j]; if (r && t) sun[d] = { rise: +r.slice(11, 13) * 60 + +r.slice(14, 16), set: +t.slice(11, 13) * 60 + +t.slice(14, 16) }; });
-    out[s.id] = { launch: arr[i * 2].hourly, land: arr[i * 2 + 1].hourly, sun };
+    out[s.id] = { launch: mergeByTime(arr[i * 2].hourly, prof?.[i]), land: arr[i * 2 + 1].hourly, sun };
   });
   return out;
+}
+/* Feuchte auf Starthöhe (aus Druckflächen interpoliert) und Wind 80 m, nur ICON-D2.
+   Analyse 60 Tage: Feuchte ≥ 95 % auf Starthöhe plus tiefe ICON-CH2-Basis gab 1 falschen Alarm von 52. */
+const PLEV = ["950", "925", "900", "850", "800", "700"];
+export function rhAtElev(h, i, elev) {
+  const pts = PLEV.map(p => [h[`geopotential_height_${p}hPa`]?.[i], h[`relative_humidity_${p}hPa`]?.[i]]).filter(([z, r]) => z != null && r != null).sort((a, b) => a[0] - b[0]);
+  for (let k = 0; k < pts.length - 1; k++) {
+    const [z0, r0] = pts[k], [z1, r1] = pts[k + 1];
+    if (z0 <= elev && elev <= z1) return Math.round(r0 + (r1 - r0) * (elev - z0) / (z1 - z0));
+  }
+  return null;
+}
+async function fetchLaunchProfile(SITES, base, range) {
+  const q = new URLSearchParams({
+    latitude: SITES.map(s => s.lat).join(","), longitude: SITES.map(s => s.lon).join(","),
+    hourly: ["wind_speed_80m", "wind_direction_80m", ...PLEV.flatMap(p => [`relative_humidity_${p}hPa`, `geopotential_height_${p}hPa`])].join(","),
+    models: "icon_d2", timezone: "Europe/Vienna", ...range,
+  });
+  const res = await getJSON(base + q, 2), arr = Array.isArray(res) ? res : [res];
+  return SITES.map((s, i) => {
+    const h = arr[i]?.hourly; if (!h) return null;
+    return { time: h.time, rh_launch_icon_d2: h.time.map((_, j) => rhAtElev(h, j, s.elev)), wind_speed_80m_icon_d2: h.wind_speed_80m, wind_direction_80m_icon_d2: h.wind_direction_80m };
+  });
+}
+function mergeByTime(hourly, extra) {
+  if (!extra) return hourly;
+  const idx = new Map(extra.time.map((t, j) => [t, j]));
+  for (const [k, v] of Object.entries(extra)) if (k !== "time") hourly[k] = hourly.time.map(t => { const j = idx.get(t); return j == null ? null : v[j] ?? null; });
+  return hourly;
 }
 export async function fetchFoehn(R, base, range) {
   const FOEHN = R.foehn, FOEHN_POINTS = [FOEHN.primary.a, FOEHN.primary.b, FOEHN.secondary.a, FOEHN.secondary.b];
@@ -83,9 +112,7 @@ export const PROVIDERS = {
       Object.entries(st).forEach(([id, v]) => out.st[id] = { dir: v.dir[0] ?? null, ff: v.ff[0] ?? null, ffx: v.ffx[0] ?? null, sun: v.so[0] == null ? null : v.so[0] / 600, rh: v.rf[0] ?? null });
       return out;
     },
-    async history(R, hoursBack) {
-      const SITES = R.SITES;
-      const ids = histIds(R);
+    async history(R, hoursBack, ids = histIds(R)) {
       const start = new Date(Date.now() - hoursBack * 3600e3).toISOString().slice(0, 16);
       const end = new Date().toISOString().slice(0, 16);
       const q = new URLSearchParams({ parameters: "DD,FF,FFX,SO", station_ids: ids.join(","), start, end });
@@ -116,14 +143,16 @@ PROVIDERS.suedtirol = {
     }));
     return out;
   },
-  async history(R, hoursBack) {
-      const SITES = R.SITES;
-    const ids = histIds(R);
+  async history(R, hoursBack, ids = histIds(R), lite = false) {
+    const tries = lite ? 1 : 3;   // Trefferquote: Abrufe sparen (Workers-Limit)
     const from = ymd(new Date(Date.now() - hoursBack * 3600e3)), to = ymd(new Date(Date.now() + 864e5));
     const out = {};
     await Promise.all(ids.map(async id => {
-      const get = code => getJSON(`${BZ}/timeseries?station_code=${id}&sensor_code=${code}&date_from=${from}&date_to=${to}`);
-      const [wg, gb, wr, sd] = await Promise.all([get("WG"), get("WG.BOE"), get("WR"), get("SD").catch(() => [])]);
+      const get = code => getJSON(`${BZ}/timeseries?station_code=${id}&sensor_code=${code}&date_from=${from}&date_to=${to}`, tries);
+      // lite: nur Mittel und Böe (Trefferquote), spart Abrufe. Eine ausgefallene Station bricht nicht alles ab.
+      let wg, gb, wr, sd;
+      try { [wg, gb, wr, sd] = await Promise.all([get("WG"), get("WG.BOE"), lite ? [] : get("WR"), lite ? [] : get("SD").catch(() => [])]); }
+      catch { return; }
       const byT = {};
       const put = (arr, k, f) => arr.forEach(r => { (byT[r.DATE] = byT[r.DATE] || { t: bzDate(r.DATE) })[k] = f(r.VALUE); });
       put(wg, "ff", v => v * 3.6); put(gb, "ffx", v => v * 3.6); put(wr, "dir", v => v); put(sd || [], "sun", v => v / 600);
@@ -169,8 +198,7 @@ PROVIDERS.meteoswiss = {
   async live(R) {
     return parseVQHA80(await getText("https://data.geo.admin.ch/ch.meteoschweiz.messwerte-aktuell/VQHA80.csv"), new Set(R.STATIONS.map(s => s.id)));
   },
-  async history(R, hoursBack) {
-    const ids = histIds(R);
+  async history(R, hoursBack, ids = histIds(R)) {
     const from = Date.now() - hoursBack * 3600e3, out = {};
     await Promise.all(ids.map(async id => {
       const a = id.toLowerCase();

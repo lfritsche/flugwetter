@@ -43,6 +43,7 @@ function makeData(over = () => ({})) {
     set("wind_speed_700hPa", v("w700", 12)); set("wind_direction_700hPa", v("d700", 220));
     set("cape", v("cape", 0)); set("lifted_index", v("li", 5)); set("precipitation", v("rain", 0));
     set("cloud_base", v("cb", 20900)); set("cloud_cover_low", v("low", 0)); set("boundary_layer_height", v("blh", 900));
+    H.rh_launch_icon_d2 = HOURS.map((_, h) => over(h).rh ?? null);
     set("visibility", v("vis", 30000)); set("pressure_msl", v("p", 1015)); set("weather_code", v("wx", 1));
     return H;
   };
@@ -75,14 +76,14 @@ describe("Grundbewertung", () => {
     expect(at(H, 16).score.grades.dark).toBeUndefined();
   });
   it("jedes Rot macht die Stunde rot (Böen > 25)", () => {
-    const H = run("south", h => (h === 12 ? { gust: 30 } : {}));
+    const H = run("south", h => (h === 13 ? { gust: 30 } : {}));   // Open-Meteo-Wert 13 Uhr = Böe 12–13 Uhr
     expect(at(H, 12).score.level).toBe(2);
   });
 });
 
 describe("Anfänger-Strenge", () => {
   it("gelber Regen verhindert grün bei Anfängern", () => {
-    const H = run("south", h => (h === 12 ? { rain: 0.1 } : {}));
+    const H = run("south", h => (h === 13 ? { rain: 0.1 } : {}));
     expect(at(H, 12).score.grades.rain).toBe(1);
     expect(at(H, 12).score.level).toBe(1);
   });
@@ -343,6 +344,18 @@ describe("Review 8.11.: falscher Alarm an Inversionstagen", () => {
     const H = run("south", () => ({ cb: 1250, vis: 1200 }));
     expect(cloudLv(at(H, 11))).toBe(2);
   });
+  it("Basis unter dem Start und ICON-D2-Feuchte ≥ 95 %: beide einig, rot", () => {
+    const H = run("south", () => ({ cb: 1250, vis: 30000, rh: 97 }));
+    expect(cloudLv(at(H, 11))).toBe(2);
+  });
+  it("ohne tiefe Basis, aber Feuchte ≥ 90 % und tiefe Wolken: gelb", () => {
+    const h = at(run("south", () => ({ rh: 93, low: 60 })), 11);
+    expect(cloudLv(h)).toBe(1);
+    expect(h.score.reasons.find(r => r.key === "cloud").value).toContain("Feuchte");
+  });
+  it("Feuchte ohne tiefe Wolken bleibt grün", () => {
+    expect(cloudLv(at(run("south", () => ({ rh: 93, low: 20 })), 11)) ?? 0).toBe(0);
+  });
   it("Böigkeit ist nie schlechter als die Böe selbst", () => {
     const H = run("south", () => ({ ws: 6, gust: 22 }));   // Böigkeit 16 (rot), Böe 22 (gelb)
     expect(at(H, 13).score.grades.gust).toBe(1);
@@ -381,6 +394,14 @@ describe("Review 8.11.: falscher Alarm an Inversionstagen", () => {
   it("Basis unter dem Start ohne Messung ist auch für Erfahrene nie grün", () => {
     const H = run("south", () => ({ cb: 1250, vis: 30000 }), 2);
     expect(at(H, 11).score.level).toBe(1);
+  });
+});
+
+describe("Zeitachse: Böen und Regen gelten für die folgende Stunde", () => {
+  it("Stunde 13 nutzt die Modellböe von 14 Uhr (Open-Meteo: Wert der vorangehenden Stunde)", () => {
+    const H = run("south", h => ({ gust: h === 14 ? 40 : 14 }));
+    expect(at(H, 13).gust).toBe(40);
+    expect(at(H, 14).gust).toBe(14);
   });
 });
 

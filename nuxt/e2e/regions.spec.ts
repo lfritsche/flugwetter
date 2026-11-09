@@ -178,3 +178,12 @@ test("Desktop: Karte lädt selbst neben der Tabelle, alle Ebenen, Zeitregler wir
   await expect(page.locator(".map-card .flag").first()).toContainText("Gleitpfad 12 Uhr");
   expect(errors).toEqual([]);
 });
+
+test("Modell-Check: Böen-Vergleich je Station", async ({ page, request }) => {
+  const api = await (await request.get("/api/verify/walgau")).json();
+  expect(api.stations.length).toBeGreaterThan(2);
+  expect(api.stations.some(s => s.n > 0)).toBe(true);
+  await page.goto("/walgau/hensler");
+  await page.locator(".verify").scrollIntoViewIfNeeded();
+  await expect(page.locator(".verify-row").first()).toBeVisible({ timeout: 60_000 });
+});
