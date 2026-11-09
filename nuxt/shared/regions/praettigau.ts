@@ -160,6 +160,8 @@ const REGION = {
     },
   ],
   // MeteoSchweiz Open Data (10-min, km/h)
+  // Gemessene Sonne auf Starthöhe hebt die Wolkenbasis-Warnung auf (Davos und Weissfluhjoch)
+  sunStations: ["DAV", "WFJ"],
   STATIONS: [
     { id: "SRS", lat: 46.9755, lon: 9.6681, name: "Schiers", elev: 626, role: "Prättigau, Landewind" },
     { id: "CHU", lat: 46.8706, lon: 9.5308, name: "Chur", elev: 556, role: "Föhn-Warnung Rheintal" },

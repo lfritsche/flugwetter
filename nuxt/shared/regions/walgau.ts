@@ -97,6 +97,8 @@ const REGION = {
 ],
 
   // GeoSphere TAWES (10-min, FF/FFX in m/s)
+  // Gemessene Sonne auf Starthöhe hebt die Wolkenbasis-Warnung auf (Brand und Laterns)
+  sunStations: ["11304", "11251"],
   STATIONS: [
   { id: "11304", lat: 47.1031, lon: 9.7383, name: "Brand", elev: 1029, role: "Föhn-Frühwarnung" },
   { id: "11099", lat: 47.1478, lon: 9.8294, name: "Bludenz", elev: 571, role: "Walgau Ost" },

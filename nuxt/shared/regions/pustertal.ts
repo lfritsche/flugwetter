@@ -139,6 +139,8 @@ const REGION = {
     },
   ],
   // Landeswetterdienst Südtirol (WG/WG.BOE in m/s, WR in °)
+  // Gemessene Sonne auf Starthöhe hebt die Wolkenbasis-Warnung auf (Terenten, St. Magdalena, Toblach, Welsberg)
+  sunStations: ["65600MS", "44500MS", "41000MS", "43200MS"],
   STATIONS: [
     { id: "45100WS", lat: 46.8561, lon: 12.2005, name: "Regelspitze", elev: 2747, role: "Gsies Gipfel · Nordföhn-Warnung" },
     { id: "45200SF", lat: 46.8417, lon: 12.2096, name: "Pfinnalm", elev: 2152, role: "Gsies, Höhe der Spielalm" },

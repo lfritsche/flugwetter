@@ -63,6 +63,8 @@ export async function fetchFoehn(R, base, range) {
   const byTime = {}; time.forEach((t, i) => byTime[t] = { bi: bi[i], lz: lz[i], dt: dt[i] });
   return { time, bi, lz, byTime };
 }
+/** Stationen für den Verlauf: Messstationen der Startplätze und Sonnen-Stationen der Region */
+const histIds = R => [...new Set([...R.SITES.flatMap(s => [s.historyStation, s.measureStation]), ...(R.sunStations || [])].filter(Boolean))];
 /* Stations-Provider: liefern live → {ts, st:{id:{dir,ff,ffx}}} und history(h) → {id:{"YYYY-MM-DDTHH:00":{dir,ff,ffx}}} in km/h */
 export const PROVIDERS = {
   geosphere: {
@@ -83,13 +85,13 @@ export const PROVIDERS = {
     },
     async history(R, hoursBack) {
       const SITES = R.SITES;
-      const ids = [...new Set(SITES.flatMap(s => [s.historyStation, s.measureStation]).filter(Boolean))];
+      const ids = histIds(R);
       const start = new Date(Date.now() - hoursBack * 3600e3).toISOString().slice(0, 16);
       const end = new Date().toISOString().slice(0, 16);
-      const q = new URLSearchParams({ parameters: "DD,FF,FFX", station_ids: ids.join(","), start, end });
+      const q = new URLSearchParams({ parameters: "DD,FF,FFX,SO", station_ids: ids.join(","), start, end });
       const d = await getJSON("https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min?" + q);
       const st = this.parse(d), out = {};
-      Object.entries(st).forEach(([id, v]) => out[id] = hourBuckets(d.timestamps.map((ts, i) => ({ t: new Date(ts), dir: v.dir[i], ff: v.ff[i], ffx: v.ffx[i] }))));
+      Object.entries(st).forEach(([id, v]) => out[id] = hourBuckets(d.timestamps.map((ts, i) => ({ t: new Date(ts), dir: v.dir[i], ff: v.ff[i], ffx: v.ffx[i], sun: v.so[i] == null ? null : v.so[i] / 600 }))));
       return out;
     },
   },
@@ -116,15 +118,15 @@ PROVIDERS.suedtirol = {
   },
   async history(R, hoursBack) {
       const SITES = R.SITES;
-    const ids = [...new Set(SITES.flatMap(s => [s.historyStation, s.measureStation]).filter(Boolean))];
+    const ids = histIds(R);
     const from = ymd(new Date(Date.now() - hoursBack * 3600e3)), to = ymd(new Date(Date.now() + 864e5));
     const out = {};
     await Promise.all(ids.map(async id => {
       const get = code => getJSON(`${BZ}/timeseries?station_code=${id}&sensor_code=${code}&date_from=${from}&date_to=${to}`);
-      const [wg, gb, wr] = await Promise.all([get("WG"), get("WG.BOE"), get("WR")]);
+      const [wg, gb, wr, sd] = await Promise.all([get("WG"), get("WG.BOE"), get("WR"), get("SD").catch(() => [])]);
       const byT = {};
       const put = (arr, k, f) => arr.forEach(r => { (byT[r.DATE] = byT[r.DATE] || { t: bzDate(r.DATE) })[k] = f(r.VALUE); });
-      put(wg, "ff", v => v * 3.6); put(gb, "ffx", v => v * 3.6); put(wr, "dir", v => v);
+      put(wg, "ff", v => v * 3.6); put(gb, "ffx", v => v * 3.6); put(wr, "dir", v => v); put(sd || [], "sun", v => v / 600);
       out[id] = hourBuckets(Object.values(byT));
     }));
     return out;
@@ -154,11 +156,12 @@ export function parseVQHA80(text, ids) {
 const msTime = s => Date.UTC(+s.slice(6, 10), +s.slice(3, 5) - 1, +s.slice(0, 2), +s.slice(11, 13), +s.slice(14, 16));
 /* Stundenwerte: rec darf am Anfang abgeschnitten sein (Range), Kopf kommt aus now */
 export function parseHourly(now, rec, fromMs) {
-  const h = now.slice(0, now.search(/\r?\n/)).split(";"), F = h.indexOf("fu3010h0"), G = h.indexOf("fu3010h1"), D = h.indexOf("dkl010h0"), o = {};
+  const h = now.slice(0, now.search(/\r?\n/)).split(";"), F = h.indexOf("fu3010h0"), G = h.indexOf("fu3010h1"), D = h.indexOf("dkl010h0"), SU = h.indexOf("sre000h0"), o = {};
   for (const l of `${rec}\n${now}`.split(/\r?\n/)) {
     if (!/^[A-Z0-9]{3};\d/.test(l)) continue;
     const c = l.split(";"), t = msTime(c[1]) - 3600e3;
-    if (t >= fromMs && num(c[F]) != null) o[localKey(new Date(t))] = { dir: num(c[D]), ff: num(c[F]), ffx: num(c[G]) };
+    const sun = SU < 0 ? null : num(c[SU]);
+    if (t >= fromMs && (num(c[F]) != null || sun != null)) o[localKey(new Date(t))] = { dir: num(c[D]), ff: num(c[F]), ffx: num(c[G]), ...(sun == null ? {} : { sun: sun / 60 }) };
   }
   return o;
 }
@@ -167,7 +170,7 @@ PROVIDERS.meteoswiss = {
     return parseVQHA80(await getText("https://data.geo.admin.ch/ch.meteoschweiz.messwerte-aktuell/VQHA80.csv"), new Set(R.STATIONS.map(s => s.id)));
   },
   async history(R, hoursBack) {
-    const ids = [...new Set(R.SITES.flatMap(s => [s.historyStation, s.measureStation]).filter(Boolean))];
+    const ids = histIds(R);
     const from = Date.now() - hoursBack * 3600e3, out = {};
     await Promise.all(ids.map(async id => {
       const a = id.toLowerCase();

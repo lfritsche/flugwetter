@@ -332,3 +332,54 @@ describe("URL-Level", () => {
     expect(levelFromSlug(undefined)).toBeNull();
   });
 });
+
+describe("Review 8.11.: falscher Alarm an Inversionstagen", () => {
+  const cloudLv = H => H.score.grades.cloud;
+  it("Basis unter dem Start bei guter Sicht ist nur gelb", () => {
+    const H = run("south", () => ({ cb: 1250, vis: 30000 }));
+    expect(cloudLv(at(H, 11))).toBe(1);
+  });
+  it("Basis unter dem Start mit schlechter Sicht bleibt rot", () => {
+    const H = run("south", () => ({ cb: 1250, vis: 1200 }));
+    expect(cloudLv(at(H, 11))).toBe(2);
+  });
+  it("Böigkeit ist nie schlechter als die Böe selbst", () => {
+    const H = run("south", () => ({ ws: 6, gust: 22 }));   // Böigkeit 16 (rot), Böe 22 (gelb)
+    expect(at(H, 13).score.grades.gust).toBe(1);
+    expect(at(H, 13).score.grades.spread).toBe(1);
+  });
+  it("starke Böen bleiben rot", () => {
+    const H = run("south", () => ({ ws: 10, gust: 35 }));
+    expect(at(H, 13).score.grades.gust).toBe(2);
+    expect(at(H, 13).score.level).toBe(2);
+  });
+
+  // Gemessene Sonne auf Starthöhe schlägt die Modell-Wolkenbasis (nur gemessene Stunden)
+  function runSun(stationElev, sunFrac) {
+    const S = defaultSettings(R.SITES);
+    S.mode = "sim"; S.tab = "south";
+    const D = makeData(() => ({ cb: 1250, vis: 30000 }));
+    const R2 = { ...R, sunStations: ["sun1"], STATIONS: [...R.STATIONS, { id: "sun1", name: "Sonnberg", elev: stationElev, lat: 47.05, lon: 9.05 }] };
+    const hist = { sun1: Object.fromEntries(HOURS.map(t => [t, { ff: 3, ffx: 6, dir: 180, sun: sunFrac }])) };
+    setCtx({ S, DATA: { simFc: D.fc, simFoehn: D.foehn, simHist: hist, live: null }, R: R2, SEL: { dayIdx: 0, hour: null }, EVAL: {} });
+    return evaluateSite(R2.SITES[0]).hours.filter(h => h.day === DAY);
+  }
+  it("Sonne auf Starthöhe gemessen: Wolkenbasis grün", () => {
+    const h = at(runSun(1200, 1), 11);
+    expect(cloudLv(h)).toBe(0);
+    expect(h.score.reasons.find(r => r.key === "cloud").value).toContain("Sonnberg");
+  });
+  it("Sonne nur im Tal gemessen zählt nicht", () => {
+    expect(cloudLv(at(runSun(600, 1), 11))).toBe(1);
+  });
+  it("wenig Sonne gemessen ändert nichts", () => {
+    expect(cloudLv(at(runSun(1200, 0.3), 11))).toBe(1);
+  });
+  it("keine Sonne gemessen bestätigt die Wolken: rot", () => {
+    expect(cloudLv(at(runSun(1200, 0), 11))).toBe(2);
+  });
+  it("Basis unter dem Start ohne Messung ist auch für Erfahrene nie grün", () => {
+    const H = run("south", () => ({ cb: 1250, vis: 30000 }), 2);
+    expect(at(H, 11).score.level).toBe(1);
+  });
+});

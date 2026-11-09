@@ -25,14 +25,18 @@ export const angDist = (x, y) => { const d = Math.abs(x - y) % 360; return d > 1
 export function hourBuckets(samples) {   // samples: [{t: Date, dir, ff, ffx}]
   const buckets = {};
   samples.forEach(x => {
-    if (x.ff == null) return;
     const k = localKey(x.t);
-    const b = buckets[k] = buckets[k] || { u: 0, w: 0, s: 0, g: 0, n: 0 };
+    const b = buckets[k] = buckets[k] || { u: 0, w: 0, s: 0, g: 0, n: 0, sun: 0, sn: 0 };
+    if (x.sun != null) { b.sun += x.sun; b.sn++; }   // Sonnenanteil 0–1 je Messung
+    if (x.ff == null) return;
     const rad = (x.dir ?? 0) * Math.PI / 180;
     b.u += Math.sin(rad) * x.ff; b.w += Math.cos(rad) * x.ff; b.s += x.ff; b.g = Math.max(b.g, x.ffx ?? 0); b.n++;
   });
   const out = {};
-  Object.entries(buckets).forEach(([k, b]) => out[k] = { ff: b.s / b.n, ffx: b.g, dir: (Math.atan2(b.u, b.w) * 180 / Math.PI + 360) % 360 });
+  Object.entries(buckets).forEach(([k, b]) => out[k] = {
+    ...(b.n ? { ff: b.s / b.n, ffx: b.g, dir: (Math.atan2(b.u, b.w) * 180 / Math.PI + 360) % 360 } : {}),
+    ...(b.sn ? { sun: b.sun / b.sn } : {}),
+  });
   return out;
 }
 export function decodeBurnair(d, elev) {
@@ -101,6 +105,10 @@ export function buildHours(site, fc, foehn, hist) {
   const meas = site.measureStation && hist && hist[site.measureStation];
   const measName = site.measureStation && (STATION_NAME[site.measureStation] || site.measureStation);
   const nowKey = isSim() ? "9999" : nowLocalKey();
+  // Sonnen-Stationen etwa auf Starthöhe (300 m darunter bis 500 m darüber, höchstens 25 km entfernt)
+  const km = (a, b) => Math.hypot((a.lat - b.lat) * 111, (a.lon - b.lon) * 111 * Math.cos(a.lat * Math.PI / 180));
+  const sunSt = (R.sunStations || []).map(id => STATIONS.find(s => s.id === id))
+    .filter(s => s && s.elev >= site.elev - 300 && s.elev <= site.elev + 500 && (s.lat == null || site.lat == null || km(s, site) <= 25));
   return L.time.map((t, i) => {
     const wD2 = at(L, "wind_speed_10m", "icon_d2", i), wCH = at(L, "wind_speed_10m", "meteoswiss_icon_ch2", i);
     const gD2 = at(L, "wind_gusts_10m", "icon_d2", i), gCH = at(L, "wind_gusts_10m", "meteoswiss_icon_ch2", i);
@@ -127,6 +135,12 @@ export function buildHours(site, fc, foehn, hist) {
     const cb = at(L, "cloud_base", "meteoswiss_icon_ch2", i);
     const cloudBase = ba ? ba.cloudBase : (cb == null || cb > 15000 ? null : cb);   // >15 km = keine Wolke
     const f = foehn && foehn.byTime[t];
+    // Messung schlägt Modell auch bei den Wolken: gemessene Sonne auf Starthöhe (nur jetzt und vergangene Stunden)
+    let sunMeas = null;
+    if (t <= nowKey) for (const s of sunSt) {
+      const v = hist?.[s.id]?.[t]?.sun ?? (t === nowKey ? DATA.live?.st?.[s.id]?.sun : null);
+      if (v != null && (!sunMeas || v > sunMeas.frac)) sunMeas = { name: s.name, frac: v };
+    }
     const firstOf = (k, ms) => { for (const m of ms) { const v = at(L, k, m, i); if (v != null) return v; } return null; };
     const upper = ["icon_d2", "icon_eu", "ecmwf_ifs025", "gfs_seamless"];
     return {
@@ -151,7 +165,7 @@ export function buildHours(site, fc, foehn, hist) {
       cape: mx(at(L, "cape", "icon_d2", i), at(L, "cape", "meteoswiss_icon_ch2", i)) ?? mx(at(L, "cape", "icon_eu", i), at(L, "cape", "ecmwf_ifs025", i), at(L, "cape", "gfs_seamless", i)),
       li: at(L, "lifted_index", "gfs_seamless", i),
       rain: ba && ba.rain != null ? ba.rain : mx(at(L, "precipitation", "icon_d2", i), at(L, "precipitation", "meteoswiss_icon_ch2", i)) ?? mx(at(L, "precipitation", "icon_eu", i), at(L, "precipitation", "ecmwf_ifs025", i)),
-      cloudBase, cloud: cloudBase == null ? null : Math.round(cloudBase - site.elev),
+      cloudBase, cloud: cloudBase == null ? null : Math.round(cloudBase - site.elev), sunMeas,
       lowCloud: mx(at(L, "cloud_cover_low", "icon_d2", i), at(L, "cloud_cover_low", "meteoswiss_icon_ch2", i)),
       blh: ba && ba.blh != null ? ba.blh : at(L, "boundary_layer_height", "gfs_seamless", i),
       foehn: f ? (FOEHN.combine === "max" ? mx(f.bi, f.lz) : (f.bi ?? f.lz)) : null,
@@ -283,13 +297,21 @@ export function scoreHour(hr, site) {
   PARAMS.forEach(p => {
     const lim = S.limits[p.key], v = hr[p.key];
     let lv = grade(v, lim, p.invert);
+    let shown = v == null ? null : fmt(v, p.unit);
     if (p.key === "cloud" && lv != null && hr.lowCloud != null && hr.lowCloud >= 90 && v < lim.r) lv = 2;
+    // Start in Wolken nur rot, wenn ICON-D2 am Start auch schlechte Sicht oder Nebel sieht (8.11.: Wolken erfunden, volle Sonne)
+    // Gemessen wenig Sonne auf Starthöhe bestätigt die Wolken: dann bleibt es rot. Ohne Messung bleibt gelb, aber nie grün (key2).
+    let key2 = p.key2;
+    if (p.key === "cloud" && lv === 2 && !(hr.fog || (hr.vis != null && hr.vis < 5000)) && !(hr.sunMeas && hr.sunMeas.frac < 0.25)) { lv = 1; key2 = true; }
+    if (p.key === "cloud" && lv && hr.sunMeas && hr.sunMeas.frac >= 0.75) { lv = 0; shown = `Sonne gemessen (${hr.sunMeas.name})`; }
     // Hike & Fly: 700 hPa (~3000 m) liegt über der Flughöhe, starke Thermik nur Hinweis → höchstens gelb
     if (S.flight === "hf" && ((p.key === "w700" && site.elev < 1800) || p.key === "blh") && lv === 2) lv = 1;
     if (p.key === "foehn") lv = foehnGrade(hr, lim) ?? 1;   // ohne Föhndaten nie grün
     // Böigkeit zählt erst, wenn die Böen selbst über grün liegen (sonst Artefakt bei Windstille)
     if (p.key === "spread" && lv != null && hr.gust != null && hr.gust <= S.limits.gust.g) lv = 0;
-    push(p.key, p.label, lv, v == null ? null : fmt(v, p.unit), p.invert ? `≥${lim.g} / <${lim.r}` : `≤${lim.g} / >${lim.r}`, p.weight, p.key2);
+    // …und nie schlechter als die Böe selbst: Modelle blähen Böen bei Schwachwind mit Thermik auf (8.11.: 16 statt gemessen 5–8)
+    if (p.key === "spread" && lv) lv = Math.min(lv, grade(hr.gust, S.limits.gust) ?? lv);
+    push(p.key, p.label, lv, shown, p.invert ? `≥${lim.g} / <${lim.r}` : `≤${lim.g} / >${lim.r}`, p.weight, key2);
   });
   const pick = dirPick(site, hr.dir, hr.windLaunch), dg = pick.g;
   if (dg != null) {
