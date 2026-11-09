@@ -48,24 +48,31 @@ export async function fetchForecast(R, base, range, models) {
 /* Feuchte auf Starthöhe (aus Druckflächen interpoliert) und Wind 80 m, nur ICON-D2.
    Analyse 60 Tage: Feuchte ≥ 95 % auf Starthöhe plus tiefe ICON-CH2-Basis gab 1 falschen Alarm von 52. */
 const PLEV = ["950", "925", "900", "850", "800", "700"];
-export function rhAtElev(h, i, elev) {
-  const pts = PLEV.map(p => [h[`geopotential_height_${p}hPa`]?.[i], h[`relative_humidity_${p}hPa`]?.[i]]).filter(([z, r]) => z != null && r != null).sort((a, b) => a[0] - b[0]);
+function atElev(h, i, elev, key) {
+  const pts = PLEV.map(p => [h[`geopotential_height_${p}hPa`]?.[i], h[`${key}_${p}hPa`]?.[i]]).filter(([z, r]) => z != null && r != null).sort((a, b) => a[0] - b[0]);
   for (let k = 0; k < pts.length - 1; k++) {
     const [z0, r0] = pts[k], [z1, r1] = pts[k + 1];
-    if (z0 <= elev && elev <= z1) return Math.round(r0 + (r1 - r0) * (elev - z0) / (z1 - z0));
+    if (z0 <= elev && elev <= z1) return r0 + (r1 - r0) * (elev - z0) / (z1 - z0);
   }
   return null;
+}
+export const rhAtElev = (h, i, elev) => { const v = atElev(h, i, elev, "relative_humidity"); return v == null ? null : Math.round(v); };
+/** Temperaturabnahme Start bis 700 hPa in °C/km (Thermikindex). Null, wenn 700 hPa weniger als 500 m über dem Start liegt. */
+export function lapseFromStart(h, i, elev) {
+  const t0 = atElev(h, i, elev, "temperature"), t7 = h.temperature_700hPa?.[i], z7 = h.geopotential_height_700hPa?.[i];
+  if (t0 == null || t7 == null || z7 == null || z7 - elev < 500) return null;
+  return Math.round((t0 - t7) / (z7 - elev) * 10000) / 10;
 }
 async function fetchLaunchProfile(SITES, base, range) {
   const q = new URLSearchParams({
     latitude: SITES.map(s => s.lat).join(","), longitude: SITES.map(s => s.lon).join(","),
-    hourly: ["wind_speed_80m", "wind_direction_80m", ...PLEV.flatMap(p => [`relative_humidity_${p}hPa`, `geopotential_height_${p}hPa`])].join(","),
+    hourly: ["wind_speed_80m", "wind_direction_80m", ...PLEV.flatMap(p => [`relative_humidity_${p}hPa`, `geopotential_height_${p}hPa`, `temperature_${p}hPa`])].join(","),
     models: "icon_d2", timezone: "Europe/Vienna", ...range,
   });
   const res = await getJSON(base + q, 2), arr = Array.isArray(res) ? res : [res];
   return SITES.map((s, i) => {
     const h = arr[i]?.hourly; if (!h) return null;
-    return { time: h.time, rh_launch_icon_d2: h.time.map((_, j) => rhAtElev(h, j, s.elev)), wind_speed_80m_icon_d2: h.wind_speed_80m, wind_direction_80m_icon_d2: h.wind_direction_80m };
+    return { time: h.time, rh_launch_icon_d2: h.time.map((_, j) => rhAtElev(h, j, s.elev)), lapse_icon_d2: h.time.map((_, j) => lapseFromStart(h, j, s.elev)), wind_speed_80m_icon_d2: h.wind_speed_80m, wind_direction_80m_icon_d2: h.wind_direction_80m };
   });
 }
 function mergeByTime(hourly, extra) {

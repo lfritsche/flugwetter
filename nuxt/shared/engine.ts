@@ -175,6 +175,7 @@ export function buildHours(site, fc, foehn, hist) {
       cloudBase, cloud: cloudBase == null ? null : Math.round(cloudBase - site.elev), sunMeas,
       rhLaunch: at(L, "rh_launch", "icon_d2", i),
       w80: at(L, "wind_speed_80m", "icon_d2", i), d80: at(L, "wind_direction_80m", "icon_d2", i),
+      lapse: at(L, "lapse", "icon_d2", i),
       lowCloud: mx(at(L, "cloud_cover_low", "icon_d2", i), at(L, "cloud_cover_low", "meteoswiss_icon_ch2", i)),
       blh: ba && ba.blh != null ? ba.blh : at(L, "boundary_layer_height", "gfs_seamless", i),
       foehn: f ? (FOEHN.combine === "max" ? mx(f.bi, f.lz) : (f.bi ?? f.lz)) : null,
@@ -188,6 +189,17 @@ export function buildHours(site, fc, foehn, hist) {
 
 /* Modell-Check: lag das Modell in den letzten gemessenen Stunden bei der Richtung daneben,
    gilt seine Richtung für die nächsten 12 Stunden als unsicher (höchstens gelb). */
+/** Thermikqualität (nur Info, zählt nicht für die Ampel): 0 kaum, 1 brauchbar, 2 gut, null ohne Daten.
+    Nicht gegen Flüge geprüft. Gut: Abnahme ≥ 6,5 °C/km Start–700 hPa, Basis ≥ 1000 m über Start oder wolkenlos,
+    Grenzschicht ≥ 1500 m über Grund, tiefe Wolken < 50 %. Kaum: < 5 °C/km, Basis < 500 m oder tiefe Wolken > 80 %. */
+export const THERMAL_TXT = ["kaum", "brauchbar", "gut"];
+export function thermalQuality(h) {
+  if (h.lapse == null) return null;
+  const low = h.lowCloud ?? 0;
+  if (h.lapse < 5 || (h.cloud != null && h.cloud < 500) || low > 80) return 0;
+  if (h.lapse >= 6.5 && (h.cloud == null || h.cloud >= 1000) && (h.blh ?? 0) >= 1500 && low < 50) return 2;
+  return 1;
+}
 export function modelCheck(site, hours) {
   if (isSim()) return;
   const calm = S.extra.calmWind;
@@ -405,7 +417,7 @@ export function evaluateSite(site) {
     const fog = liveFogCheck();
     if (fog && fog.active) { const nk = nowLocalKey(); hours.forEach(h => { if (h.t === nk) h.fogLive = `${fog.hit[0].name}: kaum Sonne`; }); }
   }
-  hours.forEach(h => h.score = scoreHour(h, site));
+  hours.forEach(h => { h.score = scoreHour(h, site); h.thermal = thermalQuality(h); });
   // Puffer: eine Stunde vor Gewitter, Regen, Föhn oder Front nicht mehr grün
   const HAZ = ["cape", "li", "rain", "foehn", "wx", "front", "landFog"];
   hours.forEach((h, i) => {

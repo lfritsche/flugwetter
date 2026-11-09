@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // @ts-nocheck
-import { curDay, dayName, STATION_NAME } from "#shared/engine";
+import { curDay, dayName, STATION_NAME, THERMAL_TXT } from "#shared/engine";
 import { arrowSVG, dirColor } from "#shared/svg";
 import { LEVEL_TXT, lvClass, nowLocalKey, dayParts, compassName } from "#shared/format";
 const D = useDash();
-const ROWS = [
+const BASE_ROWS = [
   { k: "dir", label: "Richtung" },
   { k: "windLaunch", label: "Wind", f: v => Math.round(v) },
   { k: "gust", label: "Böen", f: v => Math.round(v) },
@@ -24,6 +24,8 @@ const view = computed(() => {
   return { s, day, p: dayParts(day.key), name: dayName(D.SEL.dayIdx, day.key), nowKey: sim ? "" : nowLocalKey(), sim };
 });
 const sel = computed(() => view.value && D.SEL.hour != null ? view.value.day.hours.find(h => h.hour === D.SEL.hour) : null);
+// Thermik nur im Modus Thermik/Strecke, als Info ohne Einfluss auf die Ampel
+const ROWS = computed(() => D.S.flight === "xc" ? [...BASE_ROWS, { k: "thermal", label: "Thermik", f: v => ["·", "ok", "gut"][v] }] : BASE_ROWS);
 function cellCls(h, extra = "") { return ["c", extra, { past: h.t < view.value.nowKey, sel: D.SEL.hour === h.hour }]; }
 function cellVal(h, r) {
   if (r.k === "dir") return arrowSVG(h.dir, dirColor(h.score.dirGrade));
@@ -31,6 +33,7 @@ function cellVal(h, r) {
 }
 function cellTone(h, r) {
   if (r.k === "dir") return h.measured ? "meas" : h.dirSuspect ? "suspect" : h.burnair ? "ba" : "";
+  if (r.k === "thermal") return h.thermal === 2 ? "t0" : h.thermal === 1 ? "t1" : "";
   const g = h.score.grades[r.g || r.k]; return g == null ? (r.g && h.landVisD2 ? "t0" : "") : "t" + g;
 }
 function toggle(hr: number) { D.SEL.hour = D.SEL.hour === hr ? null : hr; }
@@ -70,6 +73,7 @@ const notes = computed(() => {
       </div>
       <div class="legend">
         <span>Wind, Böen, 850 hPa in km/h</span><span>Sicht unten = am Landeplatz in km</span><span>Basis = Wolkenbasis über Start, – = wolkenlos</span>
+        <span v-if="D.S.flight === 'xc'">Thermik: · kaum, ok brauchbar, gut (nur Info, aus ICON-D2 und GFS, nicht gegen Flüge geprüft)</span>
         <span v-if="view.s.measureStation">• = gemessen ({{ STATION_NAME[view.s.measureStation] }})</span>
         <span v-if="D.DATA.burnair"><b style="color:var(--sim)">b</b> = Burnair</span>
         <span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 3px,var(--surface) 3px 5px)" />unsicher</span>

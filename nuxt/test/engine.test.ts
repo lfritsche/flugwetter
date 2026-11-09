@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
-import { setCtx, evaluateSite, dirPick, grade, foehnGrade, liveFoehnEvents, landFogGrade, liveFogCheck } from "#shared/engine";
+import { setCtx, evaluateSite, dirPick, grade, foehnGrade, liveFoehnEvents, landFogGrade, liveFogCheck, thermalQuality } from "#shared/engine";
 import { defaultSettings, presetLimits, makeParams, levelFromSlug } from "#shared/config";
 import { hourRanges, localKey } from "#shared/format";
 
@@ -417,4 +417,19 @@ describe("Böen nach Level (Analyse 60 Tage)", () => {
   it("Anfänger: schlechteres Modell zählt", () => { expect(runSplit(0).gust).toBe(40); });
   it("Fortgeschritten: schlechteres Modell zählt", () => { expect(runSplit(1).gust).toBe(40); });
   it("ab Erfahren: Mittel aus ICON-D2 und ICON-CH2", () => { expect(runSplit(2).gust).toBe(28); });
+});
+
+describe("Thermikqualität (Info)", () => {
+  const h = o => ({ lapse: 7, cloud: null, blh: 1800, lowCloud: 10, ...o });
+  it("gut bei labiler Schichtung, hoher Basis und tiefer Grenzschicht", () => { expect(thermalQuality(h({}))).toBe(2); });
+  it("kaum bei stabiler Schichtung", () => { expect(thermalQuality(h({ lapse: 4 }))).toBe(0); });
+  it("kaum bei tiefer Basis", () => { expect(thermalQuality(h({ cloud: 300 }))).toBe(0); });
+  it("kaum bei vielen tiefen Wolken", () => { expect(thermalQuality(h({ lowCloud: 90 }))).toBe(0); });
+  it("brauchbar dazwischen", () => { expect(thermalQuality(h({ lapse: 6, blh: 900 }))).toBe(1); });
+  it("ohne Profil keine Aussage", () => { expect(thermalQuality(h({ lapse: null }))).toBeNull(); });
+  it("zählt nicht für die Ampel", () => {
+    const H = run("south", () => ({}));
+    expect(at(H, 11).thermal).toBeNull();   // Testdaten ohne Profil
+    expect(at(H, 11).score.level).toBe(0);
+  });
 });
