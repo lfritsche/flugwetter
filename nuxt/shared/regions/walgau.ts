@@ -82,6 +82,21 @@ const REGION = {
     rules: [{ type: "lee", sector: [225, 45], minSpeed: 10, label: "West-/Nordlage in der Höhe (Abwind)" }],
   },
   {
+    // Burnair Hike-&-Fly-Ebene (ID 44942, Stand 20.10.2026), am 9.11.2026 auf Wunsch einmalig von Hand abgelesen.
+    // Startrichtung aus dem Fächer auf der Karte (etwa O bis SW, Schwerpunkt S); Burnair nennt dafür keine Gradzahlen.
+    id: "vorderaelpele", name: "Vorderälpele", area: "Hike & Fly · Feldkircher Hütte", lat: 47.20817, lon: 9.595, elev: 1284,
+    sector: [135, 225], sectorWide: [90, 250], sectorLabel: "SO–SW", sectorSource: "Burnair (Kartenfächer)",
+    landing: { name: "Landeplatz Galinawald (Frastanz)", lat: 47.200, lon: 9.630, elev: 490, approx: true },
+    historyStation: "11105", cams: [],
+    notes: [
+      "Hike & Fly ab Amerlügen oder Fellengatter zur Feldkircher Hütte, Start knapp westlich davon (Burnair: leicht).",
+      "Burnair führt hier keinen Landeplatz: Landung wie bei Bazora in Frastanz, Lage ungefähr. Vorher vor Ort klären.",
+      "Am Nordhang Richtung Feldkirch markiert Burnair eine Zone \"Talwind Soaring\" (Nordwind am Nachmittag).",
+      "Bei Nord- oder Westwind in der Höhe liegt der Südstart im Lee.",
+    ],
+    rules: [],
+  },
+  {
     id: "alpila", name: "Äußere Alpila", area: "Hike & Fly", lat: 47.2299, lon: 9.7487, elev: 1530, approx: true,
     sector: [120, 200], sectorLabel: "SO–S", landing: LANDING_RIED, holfuy: HOLFUY_HENSLER, cams: [CAM_HENSLER_REF], historyStation: "11099",
     notes: [
